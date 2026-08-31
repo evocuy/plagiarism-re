@@ -1,0 +1,21 @@
+# Python & Virtual Environment
+backend/.venv/
+*.pyc
+__pycache__/
+
+# Node Modules & Next.js Build
+frontend/node_modules/
+frontend/.next/
+
+# Environment Variables & Secrets (Sesuai AGENTS.md)
+*.env
+*.env.local
+!.env.example
+
+# Temporary Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# IDE Settings
+.vscode/
+.DS_Store
