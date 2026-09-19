@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # 1. Database PostgreSQL
+  db:
+    image: postgres:16
+    container_name: plagiarism-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: evopuki123
+      POSTGRES_DB: plagiarism_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # 2. Backend FastAPI
+  backend:
+    build: ./backend
+    container_name: plagiarism-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:evopuki123@db:5432/plagiarism_db
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+
+  # 3. Frontend Next.js
+  frontend:
+    build: ./frontend
+    container_name: plagiarism-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  pgdata:
