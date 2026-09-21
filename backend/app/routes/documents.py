@@ -1,10 +1,10 @@
-from app.models.schemas import PlagiarismCheck
 import shutil
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
+from app.models.schemas import PlagiarismCheck
 from ..database.session import get_db
 from ..models.schemas import Document
 
@@ -44,9 +44,8 @@ def get_all_documents(db: Session = Depends(get_db)):
 
 @router.delete("/clear")
 def clear_all_documents(db: Session = Depends(get_db)):
-    # 1. Hapus riwayat pengecekan dan dokumen di database
-    db.query(PlagiarismCheck).delete()
-    db.query(Document).delete()
+    # 1. Hapus seluruh isi tabel dan reset urutan ID (auto-increment) ke angka 1
+    db.execute(text("TRUNCATE TABLE documents, plagiarism_checks RESTART IDENTITY CASCADE;"))
     db.commit()
 
     # 2. Hapus seluruh file PDF fisik di folder uploads
@@ -56,4 +55,4 @@ def clear_all_documents(db: Session = Depends(get_db)):
         except Exception:
             pass
 
-    return {"message": "Seluruh isi tabel database dan file di folder uploads berhasil dibersihkan."}
+    return {"message": "Seluruh isi tabel database dan file di folder uploads berhasil dibersihkan, ID telah di-reset ke 1."}

@@ -19,7 +19,7 @@ class SingleCheckRequest(BaseModel):
     reference_document_id: int
 
 @router.post("/check")
-async def check_similarity(request: SingleCheckRequest, db: Session = Depends(get_db)):
+def check_similarity(request: SingleCheckRequest, db: Session = Depends(get_db)):
     """Membandingkan 2 dokumen secara spesifik (dokumen A vs dokumen B)"""
     doc_a = db.query(Document).filter(Document.id == request.document_id).first()
     doc_b = db.query(Document).filter(Document.id == request.reference_document_id).first()
@@ -56,7 +56,7 @@ async def check_similarity(request: SingleCheckRequest, db: Session = Depends(ge
     }
 
 @router.post("/check-repository/{document_id}")
-async def check_against_repository(document_id: int, db: Session = Depends(get_db)):
+def check_against_repository(document_id: int, db: Session = Depends(get_db)):
     """Membandingkan 1 dokumen mahasiswa terhadap SELURUH dokumen di repositori kampus"""
     target_doc = db.query(Document).filter(Document.id == document_id).first()
     if not target_doc:
