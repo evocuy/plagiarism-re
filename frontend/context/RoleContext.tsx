@@ -1,40 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { getCurrentUserApi, logoutApi, type AuthUser } from "@/lib/api";
 import { Role, UserProfile, NavCategory } from "@/types/role";
-
-export const MOCK_PROFILES: Record<Role, UserProfile> = {
-  mahasiswa: {
-    name: "Ahmad Rizky Pratama",
-    identifier: "20210801142",
-    identifierType: "NIM",
-    roleLabel: "Mahasiswa Bimbingan",
-    initials: "AR",
-    email: "ahmad.rizky@student.univ.ac.id",
-    programStudi: "Teknik Informatika",
-    fakultas: "Fakultas Ilmu Komputer",
-  },
-  dosen: {
-    name: "Dr. Ir. Hendra Gunawan, M.Kom.",
-    identifier: "0412087501",
-    identifierType: "NIDN",
-    roleLabel: "Dosen Pembimbing",
-    initials: "HG",
-    email: "hendra.gunawan@lecturer.univ.ac.id",
-    programStudi: "Teknik Informatika",
-    fakultas: "Fakultas Ilmu Komputer",
-  },
-  admin: {
-    name: "Bambang Wijaya, S.Kom.",
-    identifier: "198804152011011002",
-    identifierType: "NIP",
-    roleLabel: "Administrator Sistem",
-    initials: "BW",
-    email: "admin.it@univ.ac.id",
-    programStudi: "Biro TI & Sistem Informasi",
-    fakultas: "Pusat Komputer Kampus",
-  },
-};
 
 export const ROLE_NAVIGATION: Record<Role, NavCategory[]> = {
   mahasiswa: [
@@ -71,103 +39,120 @@ export const ROLE_NAVIGATION: Record<Role, NavCategory[]> = {
       ],
     },
   ],
-  admin: [
+  super_admin: [
     {
       category: "MAIN NAVIGATION",
       items: [
         { name: "Dashboard", href: "/dashboard", iconName: "LayoutDashboard" },
         { name: "Kelola Repositori", href: "/kelola-repositori", iconName: "Database" },
         { name: "Log Pengecekan", href: "/riwayat", iconName: "FileText" },
-        { name: "Kelola Pengguna", href: "/bantuan", iconName: "UserCheck" },
+        { name: "Kelola Pengguna", href: "/kelola-pengguna", iconName: "UserCheck" },
       ],
     },
     {
       category: "PENGATURAN",
-      items: [
-        { name: "Pengaturan Sistem", href: "/panduan", iconName: "Settings" },
-      ],
+      items: [{ name: "Pengaturan Sistem", href: "/panduan", iconName: "Settings" }],
     },
   ],
 };
 
+function initialsFromName(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function toProfile(user: AuthUser): UserProfile {
+  const identifierType = user.role === "mahasiswa" ? "NIM" : user.role === "dosen" ? "NIDN" : "NIP";
+  const roleLabel =
+    user.role === "mahasiswa"
+      ? "Mahasiswa Bimbingan"
+      : user.role === "dosen"
+        ? "Dosen Pembimbing"
+        : "Super Administrator";
+
+  return {
+    name: user.name,
+    identifier: user.identifier,
+    identifierType,
+    roleLabel,
+    initials: initialsFromName(user.name),
+    email: user.email,
+    programStudi: user.program_studi ?? undefined,
+    fakultas: user.fakultas ?? undefined,
+  };
+}
+
 interface RoleContextType {
-  currentRole: Role;
-  currentUser: UserProfile;
+  currentRole: Role | null;
+  currentUser: UserProfile | null;
   isAuthenticated: boolean;
-  setRole: (role: Role) => void;
-  login: (role: Role) => void;
-  logout: () => void;
+  isLoadingSession: boolean;
+  setAuthenticatedUser: (user: AuthUser) => void;
+  logout: () => Promise<void>;
   navigation: NavCategory[];
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
-export function RoleProvider({ children }: { children: ReactNode }) {
-  const [currentRole, setCurrentRole] = useState<Role>("mahasiswa");
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+export function RoleProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
 
-  // Synchronize authentication state from localStorage on client-side mount
-  React.useEffect(() => {
-    try {
-      const savedAuth = localStorage.getItem("plagiarism_is_authenticated");
-      const savedRole = localStorage.getItem("plagiarism_auth_role") as Role | null;
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    // Timeout 5 detik — kalau backend tidak jalan, langsung resolve sebagai "tidak ada sesi"
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      if (savedAuth === "true" && savedRole && MOCK_PROFILES[savedRole]) {
-        setCurrentRole(savedRole);
-        setIsAuthenticated(true);
-      }
-    } catch {
-      // ignore SSR or storage errors
-    }
+    getCurrentUserApi(controller.signal)
+      .then((currentUser) => {
+        if (active) setUser(currentUser);
+      })
+      .catch(() => {
+        // Network error, timeout, 401 — semua dianggap unauthenticated
+        if (active) setUser(null);
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+        if (active) setIsLoadingSession(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
-  const currentUser = MOCK_PROFILES[currentRole];
-  const navigation = ROLE_NAVIGATION[currentRole];
+  const currentRole = user?.role ?? null;
+  const currentUser = user ? toProfile(user) : null;
+  const navigation = currentRole ? ROLE_NAVIGATION[currentRole] : [];
 
-  const setRole = (role: Role) => {
-    setCurrentRole(role);
-    try {
-      localStorage.setItem("plagiarism_auth_role", role);
-    } catch {
-      // ignore
-    }
-  };
-
-  const login = (role: Role) => {
-    setCurrentRole(role);
-    setIsAuthenticated(true);
-    try {
-      localStorage.setItem("plagiarism_auth_role", role);
-      localStorage.setItem("plagiarism_is_authenticated", "true");
-    } catch {
-      // ignore
-    }
-  };
-
-  const logout = () => {
-    setIsAuthenticated(false);
-    try {
-      localStorage.removeItem("plagiarism_is_authenticated");
-    } catch {
-      // ignore
-    }
-  };
-
-  return (
-    <RoleContext.Provider
-      value={{
-        currentRole,
-        currentUser,
-        isAuthenticated,
-        setRole,
-        login,
-        logout,
-        navigation,
-      }}
-    >
-      {children}
-    </RoleContext.Provider>
+  const value = useMemo(
+    () => ({
+      currentRole,
+      currentUser,
+      isAuthenticated: Boolean(user),
+      isLoadingSession,
+      setAuthenticatedUser: setUser,
+      logout: async () => {
+        try {
+          await logoutApi();
+        } finally {
+          setUser(null);
+        }
+      },
+      navigation,
+    }),
+    [currentRole, currentUser, isLoadingSession, navigation, user]
   );
+
+  return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
 }
 
 export function useRole(): RoleContextType {

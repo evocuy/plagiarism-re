@@ -3,7 +3,9 @@
  * Uses NEXT_PUBLIC_API_URL environment variable
  */
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Jika NEXT_PUBLIC_API_URL kosong, gunakan relative URL (/api/...)
+// sehingga semua request lewat proxy Next.js (same-origin, no CORS, no SameSite issue).
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 /**
  * Standard API response error handler and fetch wrapper
@@ -27,6 +29,7 @@ export async function apiFetch<T = unknown>(
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -50,7 +53,60 @@ export async function apiFetch<T = unknown>(
     throw new Error(errorDetail);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
+}
+
+export type AuthRole = "mahasiswa" | "dosen" | "super_admin";
+
+export interface AuthUser {
+  id: number;
+  identifier: string;
+  name: string;
+  email: string;
+  role: AuthRole;
+  program_studi?: string | null;
+  fakultas?: string | null;
+}
+
+interface LoginResponse {
+  user: AuthUser;
+}
+
+export async function loginApi(identifier: string, password: string): Promise<AuthUser> {
+  const response = await apiFetch<LoginResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ identifier, password }),
+  });
+  return response.user;
+}
+
+export async function getCurrentUserApi(signal?: AbortSignal): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/api/auth/me", { method: "GET", signal });
+}
+
+export async function logoutApi(): Promise<void> {
+  await apiFetch<void>("/api/auth/logout", { method: "POST" });
+}
+
+export interface CreateManagedUserInput {
+  identifier: string;
+  name: string;
+  email: string;
+  password: string;
+  role: "mahasiswa" | "dosen";
+  program_studi?: string;
+  fakultas?: string;
+}
+
+export async function createManagedUserApi(input: CreateManagedUserInput): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/api/auth/users", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 /**

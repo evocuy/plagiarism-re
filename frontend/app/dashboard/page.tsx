@@ -14,7 +14,7 @@ export default function DashboardPage() {
     <DashboardLayout title="Dashboard">
       {currentRole === "mahasiswa" && <MahasiswaDashboard />}
       {currentRole === "dosen" && <DosenDashboard />}
-      {currentRole === "admin" && <AdminDashboard />}
+      {currentRole === "super_admin" && <AdminDashboard />}
     </DashboardLayout>
   );
 }

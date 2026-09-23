@@ -14,6 +14,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./backend/database/init:/docker-entrypoint-initdb.d:ro
 
   # 2. Backend FastAPI
   backend:
@@ -24,6 +25,9 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:evopuki123@db:5432/plagiarism_db
+      - APP_ENV=development
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in the Compose environment}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-60}
     depends_on:
       - db
     volumes:

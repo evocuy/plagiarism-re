@@ -19,6 +19,13 @@ import {
 
 export default function BantuanPage() {
   const { currentUser } = useRole();
+  const profile = currentUser ?? {
+    name: "Pengguna",
+    email: "sesi@kampus.ac.id",
+    identifierType: "ID",
+    identifier: "—",
+    roleLabel: "Akses terverifikasi",
+  };
   const [category, setCategory] = useState("Kendala Unggah Dokumen PDF");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -130,7 +137,7 @@ export default function BantuanPage() {
                   Tiket Berhasil Diajukan ({ticketSubmitted})
                 </p>
                 <p className="mt-0.5 text-green-800">
-                  Terima kasih, laporan Anda telah masuk ke sistem audit helpdesk kami. Konfirmasi dan instruksi pemecahan kendala akan dikirimkan ke alamat email Anda: <strong>{currentUser.email}</strong>.
+                  Terima kasih, laporan Anda telah masuk ke sistem audit helpdesk kami. Konfirmasi dan instruksi pemecahan kendala akan dikirimkan ke alamat email Anda: <strong>{profile.email}</strong>.
                 </p>
                 <button
                   type="button"
@@ -151,7 +158,7 @@ export default function BantuanPage() {
                 </label>
                 <input
                   type="text"
-                  value={currentUser.name}
+                  value={profile.name}
                   disabled
                   className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs text-gray-600 font-medium"
                 />
@@ -159,11 +166,11 @@ export default function BantuanPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  {currentUser.identifierType} / Peran
+                  {profile.identifierType} / Peran
                 </label>
                 <input
                   type="text"
-                  value={`${currentUser.identifier} (${currentUser.roleLabel})`}
+                  value={`${profile.identifier} (${profile.roleLabel})`}
                   disabled
                   className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-xs text-gray-600 font-medium"
                 />

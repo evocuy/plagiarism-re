@@ -1,431 +1,191 @@
 "use client";
 
-import React, { useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRole, MOCK_PROFILES } from "@/context/RoleContext";
-import { Role } from "@/types/role";
-import {
-  ShieldCheck,
-  GraduationCap,
-  Briefcase,
-  Shield,
-  ArrowRight,
-  Lock,
-  User,
-  Sparkles,
-  CheckCircle2,
-  Info,
-} from "lucide-react";
+import { AlertCircle, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
+import { loginApi } from "@/lib/api";
+import { useRole } from "@/context/RoleContext";
 
-interface RoleTabOption {
-  id: Role;
-  title: string;
-  subtitle: string;
-  badge: string;
-  icon: React.ComponentType<{ className?: string }>;
-  idLabel: string;
-  defaultId: string;
-  description: string;
-  landingPage: string;
-}
-
-const ROLE_OPTIONS: RoleTabOption[] = [
-  {
-    id: "mahasiswa",
-    title: "Mahasiswa",
-    subtitle: "Mahasiswa Bimbingan",
-    badge: "Student Portal",
-    icon: GraduationCap,
-    idLabel: "Nomor Induk Mahasiswa (NIM)",
-    defaultId: "20210801142",
-    description: "Unggah naskah skripsi atau proposal sempro, periksa persentase kemiripan repositori kampus.",
-    landingPage: "/dashboard",
+const roleCopy = {
+  mahasiswa: {
+    title: "Mahasiswa Bimbingan",
+    description: "Unggah dokumen dan pantau hasil pengecekan kemiripan.",
   },
-  {
-    id: "dosen",
+  dosen: {
     title: "Dosen Pembimbing",
-    subtitle: "Dosen & Penguji",
-    badge: "Lecturer Portal",
-    icon: Briefcase,
-    idLabel: "Nomor Induk Dosen Nasional (NIDN)",
-    defaultId: "0412087501",
-    description: "Tinjau naskah bimbingan mahasiswa, validasi tingkat plagiarisme, dan kelola antrean approval sidang.",
-    landingPage: "/dashboard",
+    description: "Tinjau dokumen bimbingan dan progres mahasiswa.",
   },
-  {
-    id: "admin",
-    title: "Super Admin",
-    subtitle: "Administrator IT",
-    badge: "Admin Console",
-    icon: Shield,
-    idLabel: "Nomor Induk Pegawai (NIP) / User ID",
-    defaultId: "198804152011011002",
-    description: "Kelola repositori dokumen kampus, pantau kinerja TF-IDF engine, dan pantau log sistem.",
-    landingPage: "/dashboard",
+  super_admin: {
+    title: "Super Administrator",
+    description: "Kelola repositori dan pengaturan sistem secara terkontrol.",
   },
-];
+};
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useRole();
+  const { isAuthenticated, isLoadingSession, setAuthenticatedUser } = useRole();
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [selectedRole, setSelectedRole] = useState<Role>("mahasiswa");
-  const [identifier, setIdentifier] = useState<string>(ROLE_OPTIONS[0].defaultId);
-  const [password, setPassword] = useState<string>("password123");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const activeOption = ROLE_OPTIONS.find((r) => r.id === selectedRole) || ROLE_OPTIONS[0];
-  const ActiveIcon = activeOption.icon;
-  const mockUser = MOCK_PROFILES[selectedRole];
-
-  const handleRoleSelect = (role: Role) => {
-    setSelectedRole(role);
-    const opt = ROLE_OPTIONS.find((r) => r.id === role);
-    if (opt) {
-      setIdentifier(opt.defaultId);
+  useEffect(() => {
+    if (!isLoadingSession && isAuthenticated) {
+      router.replace("/dashboard");
     }
-    setErrorMsg(null);
-  };
+  }, [isAuthenticated, isLoadingSession, router]);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
 
-    if (!identifier.trim()) {
-      setErrorMsg(`${activeOption.idLabel} tidak boleh kosong!`);
-      return;
+    try {
+      const user = await loginApi(identifier.trim(), password);
+      setAuthenticatedUser(user);
+      router.replace("/dashboard");
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Login gagal. Coba lagi.");
+    } finally {
+      setIsSubmitting(false);
     }
-    if (!password.trim()) {
-      setErrorMsg("Kata sandi tidak boleh kosong!");
-      return;
-    }
+  }
 
-    setIsLoading(true);
-
-    setTimeout(() => {
-      login(selectedRole);
-      router.push(activeOption.landingPage);
-    }, 400);
-  };
-
-  const handleQuickLogin = (role: Role) => {
-    setErrorMsg(null);
-    setIsLoading(true);
-    const opt = ROLE_OPTIONS.find((r) => r.id === role);
-    setTimeout(() => {
-      login(role);
-      router.push(opt ? opt.landingPage : "/dashboard");
-    }, 300);
-  };
+  if (isLoadingSession || isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center text-sm text-slate-300">
+        Memeriksa sesi aman…
+      </main>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-red-50/20 to-gray-100 flex flex-col justify-between">
-      {/* Top Bar Branding */}
-      <header className="w-full border-b border-gray-200/80 bg-white/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#cc1a22] text-white shadow-xs">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold tracking-wider text-gray-900">
-                PLAGIARISM CHECKER
-              </span>
-              <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
-                SADS KAMPUS
-              </span>
+    <main className="min-h-screen overflow-hidden bg-slate-950 px-4 py-8 sm:p-8 lg:p-12">
+      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative hidden overflow-hidden bg-gradient-to-br from-indigo-700 via-blue-700 to-cyan-600 p-12 text-white lg:flex lg:flex-col">
+          <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
+          <div className="absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-indigo-950/40 blur-3xl" />
+
+          <div className="relative flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
+              <ShieldCheck className="h-6 w-6" aria-hidden="true" />
             </div>
-            <p className="text-[11px] text-gray-500 hidden sm:block">
-              Sistem Pengecekan Kemiripan Dokumen Naskah Skripsi & Proposal
+            <div>
+              <p className="text-sm font-semibold tracking-wide">INSTITUT TEKNOLOGI & BISNIS STIKOM BALI</p>
+              <p className="text-xs text-blue-100">Sistem Pemeriksaan Kemiripan Dokumen</p>
+            </div>
+          </div>
+
+          <div className="relative my-auto max-w-md">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-200">Akses Terproteksi</p>
+            <h1 className="text-4xl font-bold leading-tight">Pastikan karya akademik tetap orisinal.</h1>
+            <p className="mt-5 text-base leading-7 text-blue-100">
+              Masuk dengan akun institusi Anda untuk memeriksa kemiripan terhadap repositori internal kampus.
             </p>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
-          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>FastAPI Engine Online</span>
-        </div>
-      </header>
+          <div className="relative rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
+            <p className="text-sm font-semibold">Role ditentukan oleh sistem</p>
+            <p className="mt-1 text-sm leading-6 text-blue-100">
+              Hak akses mahasiswa, dosen pembimbing, dan super administrator diverifikasi setelah autentikasi berhasil.
+            </p>
+          </div>
+        </section>
 
-      {/* Main Login Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Hero Card / Welcome */}
-          <div className="lg:col-span-5 space-y-6 text-left">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Portal Terpadu Multi-Peran</span>
+        <section className="flex items-center justify-center bg-white px-6 py-10 sm:px-12">
+          <div className="w-full max-w-md">
+            <div className="mb-10 lg:hidden">
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                <ShieldCheck className="h-7 w-7" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-semibold text-indigo-600">PLAGIARISM CHECKER</p>
             </div>
 
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-snug">
-                Masuk ke Sistem Pengecekan Plagiarisme
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                Pilih peran Anda untuk mengakses antarmuka yang disesuaikan dengan alur verifikasi akademik kampus.
+            <div className="mb-8">
+              <p className="text-sm font-semibold text-indigo-600">SELAMAT DATANG</p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Masuk ke akun Anda</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-500">
+                Gunakan NIM, NIDN, atau NIP beserta kata sandi akun yang telah terdaftar.
               </p>
             </div>
 
-            {/* Role highlights */}
-            <div className="space-y-3 pt-2">
-              <div
-                onClick={() => handleRoleSelect("mahasiswa")}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                  selectedRole === "mahasiswa"
-                    ? "border-red-500 bg-white shadow-md ring-1 ring-red-500"
-                    : "border-gray-200 bg-white/60 hover:bg-white hover:border-gray-300"
-                }`}
-              >
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    selectedRole === "mahasiswa"
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900">Mahasiswa</h3>
-                    {selectedRole === "mahasiswa" && (
-                      <span className="text-[10px] font-bold text-red-600">Dipilih</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
-                    Unggah naskah skripsi/sempro dan dapatkan laporan kemiripan dengan repositori.
-                  </p>
-                </div>
-              </div>
-
-              <div
-                onClick={() => handleRoleSelect("dosen")}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                  selectedRole === "dosen"
-                    ? "border-red-500 bg-white shadow-md ring-1 ring-red-500"
-                    : "border-gray-200 bg-white/60 hover:bg-white hover:border-gray-300"
-                }`}
-              >
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    selectedRole === "dosen"
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  <Briefcase className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900">Dosen Pembimbing</h3>
-                    {selectedRole === "dosen" && (
-                      <span className="text-[10px] font-bold text-red-600">Dipilih</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
-                    Pantau daftar naskah bimbingan & validasi kelayakan sempro/sidang.
-                  </p>
-                </div>
-              </div>
-
-              <div
-                onClick={() => handleRoleSelect("admin")}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                  selectedRole === "admin"
-                    ? "border-red-500 bg-white shadow-md ring-1 ring-red-500"
-                    : "border-gray-200 bg-white/60 hover:bg-white hover:border-gray-300"
-                }`}
-              >
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    selectedRole === "admin"
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900">Super Admin</h3>
-                    {selectedRole === "admin" && (
-                      <span className="text-[10px] font-bold text-red-600">Dipilih</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
-                    Manajemen naskah repositori kampus, monitoring engine TF-IDF & server.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Card: Login Form */}
-          <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-xl">
-              {/* Role Indicator Banner */}
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-700">
-                    <ActiveIcon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-gray-900">
-                        Masuk sebagai {activeOption.title}
-                      </h2>
-                      <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
-                        {activeOption.badge}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {mockUser.name} ({mockUser.programStudi})
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Error Alert */}
-              {errorMsg && (
-                <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">
-                  <Info className="h-4 w-4 shrink-0 text-red-600" />
-                  <span>{errorMsg}</span>
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              {error && (
+                <div role="alert" className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>{error}</span>
                 </div>
               )}
 
-              {/* Form */}
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    {activeOption.idLabel}
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder={activeOption.defaultId}
-                      className="w-full rounded-lg border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2.5 text-xs text-gray-800 font-medium placeholder:text-gray-400 focus:border-red-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-red-600 transition-colors"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-gray-700">Kata Sandi</label>
-                    <span className="text-[11px] text-red-600 hover:underline cursor-pointer">
-                      Lupa sandi?
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full rounded-lg border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2.5 text-xs text-gray-800 font-medium placeholder:text-gray-400 focus:border-red-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-red-600 transition-colors"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-600 py-3 text-xs font-bold text-white shadow-md hover:bg-red-700 disabled:opacity-50 transition-all cursor-pointer"
-                  >
-                    {isLoading ? (
-                      <span>Memverifikasi akun...</span>
-                    ) : (
-                      <>
-                        <span>Masuk ke {activeOption.title}</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-
-              {/* Quick Login Section (Convenience for testing & evaluation) */}
-              <div className="mt-6 pt-5 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Akses Cepat Pengujian (1-Klik):</span>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("mahasiswa")}
-                    className="flex flex-col items-center justify-center p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 group-hover:text-red-700">
-                      <GraduationCap className="h-4 w-4 text-red-600" />
-                      <span>Mahasiswa</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 group-hover:text-red-500 mt-0.5">
-                      Rizky (NIM 142)
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("dosen")}
-                    className="flex flex-col items-center justify-center p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 group-hover:text-red-700">
-                      <Briefcase className="h-4 w-4 text-red-600" />
-                      <span>Dosen</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 group-hover:text-red-500 mt-0.5">
-                      Dr. Hendra (NIDN)
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("admin")}
-                    className="flex flex-col items-center justify-center p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 group-hover:text-red-700">
-                      <Shield className="h-4 w-4 text-red-600" />
-                      <span>Super Admin</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 group-hover:text-red-500 mt-0.5">
-                      Bambang (NIP)
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Note / Info */}
-              <div className="mt-4 rounded-lg bg-gray-50 p-2.5 text-[11px] text-gray-500 flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>
-                  Setelah masuk, halaman yang ditampilkan akan otomatis disesuaikan dengan peran yang dipilih (Mahasiswa, Dosen, atau Super Admin).
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">NIM / NIDN / NIP</span>
+                <span className="relative block">
+                  <UserRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <input
+                    required
+                    autoComplete="username"
+                    value={identifier}
+                    onChange={(event) => setIdentifier(event.target.value)}
+                    placeholder="Masukkan identitas akun"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                  />
                 </span>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700">Kata Sandi</span>
+                <span className="relative block">
+                  <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <input
+                    required
+                    minLength={1}
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Masukkan kata sandi"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </span>
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-indigo-400"
+              >
+                {isSubmitting ? "Memverifikasi akun…" : "Masuk ke Sistem"}
+                {!isSubmitting && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+              </button>
+            </form>
+
+            <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Akses Berdasarkan Peran</p>
+              <div className="mt-3 space-y-2">
+                {Object.values(roleCopy).map((role) => (
+                  <div key={role.title}>
+                    <p className="text-sm font-semibold text-slate-700">{role.title}</p>
+                    <p className="text-xs leading-5 text-slate-500">{role.description}</p>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 bg-white py-4 px-6 text-center text-xs text-gray-500">
-        <p className="font-semibold text-gray-700">
-          Sistem Pengecekan Plagiarisme & Repositori Naskah Tugas Akhir
-        </p>
-        <p className="text-[11px] text-gray-400 mt-0.5">
-          Integrasi SADS Kampus • Engine: PyMuPDF + Sastrawi + TF-IDF + Cosine Similarity
-        </p>
-      </footer>
-    </div>
+            <p className="mt-7 text-center text-xs leading-5 text-slate-500">
+              Mengalami kendala? Hubungi administrator sistem kampus.
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }

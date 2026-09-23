@@ -6,11 +6,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.database.session import get_db
+from app.routes.auth import get_current_user
 from app.models.schemas import Document, PlagiarismCheck
 from app.services.pdf_service import PDFService
 from app.services.preprocessing_service import PreprocessingService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 pdf_service = PDFService()
 preprocessor = PreprocessingService()
 

@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.models.schemas import PlagiarismCheck
+from app.routes.auth import get_current_user, require_roles
 from ..database.session import get_db
 from ..models.schemas import Document
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -52,7 +53,10 @@ def get_all_documents(db: Session = Depends(get_db)):
     return db.query(Document).all()
 
 @router.delete("/clear")
-def clear_all_documents(db: Session = Depends(get_db)):
+def clear_all_documents(
+    db: Session = Depends(get_db),
+    _: object = Depends(require_roles("super_admin")),
+):
     # 1. Hapus seluruh isi tabel dan reset urutan ID (auto-increment) ke angka 1
     db.execute(text("TRUNCATE TABLE documents, plagiarism_checks RESTART IDENTITY CASCADE;"))
     db.commit()
