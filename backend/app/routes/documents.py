@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -13,18 +13,26 @@ UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),
+    db: Session = Depends(get_db)
+):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Hanya file PDF yang diizinkan.")
+
+    clean_type = document_type.strip().lower()
+    if not clean_type:
+        raise HTTPException(status_code=400, detail="Tipe dokumen wajib diisi (skripsi/proposal).")
 
     file_path = UPLOAD_DIR / file.filename
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Simpan ke PostgreSQL
+    # Simpan ke PostgreSQL dengan tipe dokumen dinamis
     db_doc = Document(
         title=file.filename,
-        document_type="skripsi",
+        document_type=clean_type,
         file_path=str(file_path)
     )
     db.add(db_doc)
@@ -34,8 +42,9 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     return {
         "id": db_doc.id,
         "filename": db_doc.title,
+        "document_type": db_doc.document_type,
         "file_path": db_doc.file_path,
-        "message": "File berhasil diunggah dan tersimpan di database."
+        "message": f"File berhasil diunggah sebagai dokumen {db_doc.document_type.upper()} dan tersimpan di database."
     }
 
 @router.get("/")

@@ -12,8 +12,11 @@ import {
   ArrowRight,
   RefreshCw,
   FileCheck,
+  GraduationCap,
+  BookOpen,
+  Tag,
+  Check,
 } from "lucide-react";
-import { getSimilarityColorClass } from "@/lib/formatters";
 import {
   uploadDocumentApi,
   checkRepositoryApi,
@@ -23,6 +26,7 @@ import {
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState<string | null>(null);
@@ -61,8 +65,15 @@ export default function UploadPage() {
   };
 
   const handleStartChecking = async () => {
+    // 1. Validate File
     if (!file) {
       setUploadError("Silakan pilih berkas dokumen PDF terlebih dahulu!");
+      return;
+    }
+
+    // 2. Validate Document Type (Required)
+    if (!documentType) {
+      setUploadError("Tipe dokumen wajib dipilih! Silakan pilih apakah naskah Skripsi atau Proposal Seminar.");
       return;
     }
 
@@ -73,10 +84,12 @@ export default function UploadPage() {
     setAnalysisResult(null);
 
     try {
-      // 1. Send multipart/form-data POST request to FastAPI /api/documents/upload
-      const uploadRes = await uploadDocumentApi(file);
+      // 1. Send multipart/form-data POST request to FastAPI /api/documents/upload with document_type
+      const uploadRes = await uploadDocumentApi(file, documentType);
       setUploadedDoc(uploadRes);
-      setUploadSuccessMessage(uploadRes.message || `File ${uploadRes.filename} berhasil diunggah.`);
+      setUploadSuccessMessage(
+        uploadRes.message || `File ${uploadRes.filename} berhasil diunggah sebagai ${documentType.toUpperCase()}.`
+      );
 
       // 2. Trigger repository similarity comparison if possible
       try {
@@ -98,6 +111,7 @@ export default function UploadPage() {
 
   const handleReset = () => {
     setFile(null);
+    setDocumentType("");
     setIsUploading(false);
     setUploadedDoc(null);
     setAnalysisResult(null);
@@ -119,10 +133,10 @@ export default function UploadPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800">
-                Unggah Dokumen Naskah (FastAPI)
+                Unggah Dokumen Naskah Mahasiswa
               </h2>
               <p className="text-xs text-gray-500">
-                Kirim naskah skripsi atau proposal ke backend FastAPI untuk ekstraksi PyMuPDF dan perhitungan similarity repositori.
+                Pilih tipe naskah akademik (Skripsi / Proposal), unggah berkas PDF ke backend FastAPI, dan periksa tingkat kemiripan terhadap repositori kampus.
               </p>
             </div>
           </div>
@@ -133,7 +147,7 @@ export default function UploadPage() {
           <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-800 shadow-xs">
             <AlertCircle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
             <div className="flex-1">
-              <p className="font-bold">Gagal Mengunggah Berkas</p>
+              <p className="font-bold">Perhatian</p>
               <p className="mt-0.5 text-red-700">{uploadError}</p>
             </div>
             <button
@@ -166,10 +180,120 @@ export default function UploadPage() {
 
         {/* Upload Form Card */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 md:p-8 shadow-sm space-y-6">
-          {/* Drag & Drop Upload Area */}
+          {/* 1. Required Document Type Selector */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-xs font-bold text-gray-800">
+                <Tag className="h-4 w-4 text-red-600" />
+                <span>Pilih Tipe Dokumen</span>
+                <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-extrabold text-red-700">
+                  * Wajib
+                </span>
+              </label>
+              {documentType ? (
+                <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                  <Check className="h-3.5 w-3.5" />
+                  <span>Tipe: {documentType.toUpperCase()}</span>
+                </span>
+              ) : (
+                <span className="text-[11px] font-medium text-red-500">
+                  Belum dipilih
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Option: Skripsi */}
+              <div
+                onClick={() => {
+                  setDocumentType("skripsi");
+                  setUploadError(null);
+                }}
+                className={`relative flex items-start gap-3.5 rounded-xl border p-4 transition-all cursor-pointer ${
+                  documentType === "skripsi"
+                    ? "border-red-600 bg-red-50/60 shadow-xs ring-2 ring-red-600"
+                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/70"
+                }`}
+              >
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    documentType === "skripsi"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-red-50 text-red-700"
+                  }`}
+                >
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-gray-900">Skripsi / Tugas Akhir</h4>
+                    <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
+                      Bab 1 - 5
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                    Naskah lengkap skripsi untuk verifikasi syarat kelayakan sidang tugas akhir.
+                  </p>
+                </div>
+                {documentType === "skripsi" && (
+                  <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white">
+                    <Check className="h-3 w-3" />
+                  </div>
+                )}
+              </div>
+
+              {/* Option: Proposal */}
+              <div
+                onClick={() => {
+                  setDocumentType("proposal");
+                  setUploadError(null);
+                }}
+                className={`relative flex items-start gap-3.5 rounded-xl border p-4 transition-all cursor-pointer ${
+                  documentType === "proposal"
+                    ? "border-red-600 bg-red-50/60 shadow-xs ring-2 ring-red-600"
+                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/70"
+                }`}
+              >
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                    documentType === "proposal"
+                      ? "bg-red-600 text-white shadow-xs"
+                      : "bg-blue-50 text-blue-700"
+                  }`}
+                >
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-gray-900">Proposal Seminar (Sempro)</h4>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
+                      Bab 1 - 3
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                    Naskah usulan penelitian untuk verifikasi syarat pelaksanaan seminar proposal.
+                  </p>
+                </div>
+                {documentType === "proposal" && (
+                  <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white">
+                    <Check className="h-3 w-3" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {!documentType && (
+              <p className="text-[11px] text-amber-600 flex items-center gap-1 font-medium pt-0.5">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                <span>Pilih salah satu tipe dokumen di atas agar naskah dapat diproses dan dicatat di database repositori.</span>
+              </p>
+            )}
+          </div>
+
+          {/* 2. Drag & Drop Upload Area */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-              Berkas Naskah PDF
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">
+              Berkas Naskah PDF <span className="text-red-500">*</span>
             </label>
             <div
               onDragOver={(e) => e.preventDefault()}
@@ -231,7 +355,7 @@ export default function UploadPage() {
                         e.stopPropagation();
                         handleReset();
                       }}
-                      className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
                       title="Hapus berkas"
                     >
                       <X className="h-4 w-4" />
@@ -255,7 +379,7 @@ export default function UploadPage() {
                 <div className="h-full bg-red-600 animate-pulse w-full" />
               </div>
               <p className="text-[11px] text-gray-500 text-center">
-                Mohon tunggu, server sedang menyimpan dokumen dan memproses ekstraksi teks PDF.
+                Mohon tunggu, server sedang menyimpan dokumen sebagai {documentType.toUpperCase()} dan memproses perbandingan TF-IDF.
               </p>
             </div>
           )}
@@ -265,16 +389,16 @@ export default function UploadPage() {
             <button
               type="button"
               onClick={handleReset}
-              disabled={!file || isUploading}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              disabled={(!file && !documentType) || isUploading}
+              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors cursor-pointer"
             >
-              Batal
+              Reset
             </button>
             <button
               type="button"
               onClick={handleStartChecking}
-              disabled={!file || isUploading}
-              className="inline-flex items-center gap-2 rounded-md bg-red-600 px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              disabled={!file || !documentType || isUploading}
+              className="inline-flex items-center gap-2 rounded-md bg-red-600 px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               {isUploading ? (
                 <>
@@ -296,9 +420,15 @@ export default function UploadPage() {
           <div className="rounded-xl border border-gray-200 bg-white p-6 md:p-8 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-800 mb-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>Tersimpan di Database PostgreSQL (ID #{uploadedDoc.id})</span>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-800">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Tersimpan di Database (ID #{uploadedDoc.id})</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-bold text-red-800 uppercase">
+                    <Tag className="h-3 w-3" />
+                    <span>Tipe: {uploadedDoc.document_type || documentType}</span>
+                  </span>
                 </div>
                 <h3 className="text-base font-bold text-gray-800">{uploadedDoc.filename}</h3>
                 <p className="text-[11px] text-gray-400 font-mono mt-0.5">
@@ -308,7 +438,7 @@ export default function UploadPage() {
 
               {analysisResult && (
                 <div className="text-left sm:text-right">
-                  <span className="text-xs font-medium text-gray-500">Skor Tertinggi</span>
+                  <span className="text-xs font-medium text-gray-500">Skor Tertinggi Repositori</span>
                   <p className="text-2xl font-bold text-red-600">
                     {analysisResult.highest_similarity_percentage}
                   </p>
@@ -343,7 +473,7 @@ export default function UploadPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="text-xs font-semibold text-gray-600 hover:text-gray-900"
+                className="text-xs font-semibold text-gray-600 hover:text-gray-900 cursor-pointer"
               >
                 &larr; Unggah Berkas Lain
               </button>
@@ -351,7 +481,7 @@ export default function UploadPage() {
                 href="/riwayat"
                 className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 shadow-xs transition-colors"
               >
-                <span>Lihat Semua Dokumen</span>
+                <span>Lihat Riwayat & Dokumen</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>

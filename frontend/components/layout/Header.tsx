@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useRole } from "@/context/RoleContext";
 import { Role } from "@/types/role";
 import {
@@ -12,6 +13,7 @@ import {
   Shield,
   Check,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 
 interface HeaderProps {
@@ -41,7 +43,8 @@ const ROLES: { id: Role; label: string; description: string; icon: React.Compone
 ];
 
 export default function Header({ onToggleSidebar, title = "Dashboard" }: HeaderProps) {
-  const { currentRole, setRole, currentUser } = useRole();
+  const router = useRouter();
+  const { currentRole, setRole, currentUser, logout } = useRole();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -220,6 +223,20 @@ export default function Header({ onToggleSidebar, title = "Dashboard" }: HeaderP
             </div>
           )}
         </div>
+
+        {/* Logout Button */}
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            router.push("/login");
+          }}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors shadow-xs"
+          title="Keluar dari sesi akun saat ini"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Keluar</span>
+        </button>
       </div>
     </header>
   );

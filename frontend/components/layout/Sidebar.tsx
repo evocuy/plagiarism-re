@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useRole } from "@/context/RoleContext";
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   GraduationCap,
   X,
+  LogOut,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -42,7 +43,8 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { currentRole, currentUser, navigation } = useRole();
+  const router = useRouter();
+  const { currentRole, currentUser, navigation, logout } = useRole();
 
   return (
     <>
@@ -159,6 +161,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </nav>
             </div>
           ))}
+        </div>
+
+        {/* Logout Action Bar */}
+        <div className="border-t border-gray-200 p-3 bg-gray-50/60">
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors shadow-2xs"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Keluar / Ganti Akun</span>
+          </button>
         </div>
 
         {/* Bottom Footer Info */}

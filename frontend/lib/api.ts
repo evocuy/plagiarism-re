@@ -67,6 +67,7 @@ export interface ApiDocument {
 export interface UploadResponse {
   id: number;
   filename: string;
+  document_type?: string;
   file_path: string;
   message: string;
 }
@@ -89,9 +90,13 @@ export interface CheckRepositoryResponse {
 /**
  * Upload a PDF document to FastAPI (POST /api/documents/upload)
  */
-export async function uploadDocumentApi(file: File): Promise<UploadResponse> {
+export async function uploadDocumentApi(
+  file: File,
+  documentType: string = "skripsi"
+): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("document_type", documentType);
 
   return apiFetch<UploadResponse>("/api/documents/upload", {
     method: "POST",

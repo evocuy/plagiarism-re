@@ -90,7 +90,7 @@ export default function KelolaRepositoriPage() {
 
     try {
       // POST multipart/form-data to FastAPI /api/documents/upload
-      const res = await uploadDocumentApi(file);
+      const res = await uploadDocumentApi(file, docType);
       setLastUploaded(res);
       setUploadSuccessMessage("Dokumen berhasil ditambahkan ke repositori");
       setFile(null);

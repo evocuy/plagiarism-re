@@ -93,7 +93,10 @@ export const ROLE_NAVIGATION: Record<Role, NavCategory[]> = {
 interface RoleContextType {
   currentRole: Role;
   currentUser: UserProfile;
+  isAuthenticated: boolean;
   setRole: (role: Role) => void;
+  login: (role: Role) => void;
+  logout: () => void;
   navigation: NavCategory[];
 }
 
@@ -101,12 +104,53 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [currentRole, setCurrentRole] = useState<Role>("mahasiswa");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
+  // Synchronize authentication state from localStorage on client-side mount
+  React.useEffect(() => {
+    try {
+      const savedAuth = localStorage.getItem("plagiarism_is_authenticated");
+      const savedRole = localStorage.getItem("plagiarism_auth_role") as Role | null;
+
+      if (savedAuth === "true" && savedRole && MOCK_PROFILES[savedRole]) {
+        setCurrentRole(savedRole);
+        setIsAuthenticated(true);
+      }
+    } catch {
+      // ignore SSR or storage errors
+    }
+  }, []);
 
   const currentUser = MOCK_PROFILES[currentRole];
   const navigation = ROLE_NAVIGATION[currentRole];
 
   const setRole = (role: Role) => {
     setCurrentRole(role);
+    try {
+      localStorage.setItem("plagiarism_auth_role", role);
+    } catch {
+      // ignore
+    }
+  };
+
+  const login = (role: Role) => {
+    setCurrentRole(role);
+    setIsAuthenticated(true);
+    try {
+      localStorage.setItem("plagiarism_auth_role", role);
+      localStorage.setItem("plagiarism_is_authenticated", "true");
+    } catch {
+      // ignore
+    }
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    try {
+      localStorage.removeItem("plagiarism_is_authenticated");
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -114,7 +158,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       value={{
         currentRole,
         currentUser,
+        isAuthenticated,
         setRole,
+        login,
+        logout,
         navigation,
       }}
     >
