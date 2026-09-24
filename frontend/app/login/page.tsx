@@ -65,9 +65,11 @@ const ROLE_OPTIONS: RoleTabOption[] = [
   },
 ];
 
+import { loginApi } from "@/lib/api";
+
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useRole();
+  const { loginWithUser } = useRole();
 
   const [selectedRole, setSelectedRole] = useState<Role>("mahasiswa");
   const [identifier, setIdentifier] = useState<string>(ROLE_OPTIONS[0].defaultId);
@@ -84,11 +86,12 @@ export default function LoginPage() {
     const opt = ROLE_OPTIONS.find((r) => r.id === role);
     if (opt) {
       setIdentifier(opt.defaultId);
+      setPassword("password123");
     }
     setErrorMsg(null);
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -103,20 +106,35 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      login(selectedRole);
-      router.push(activeOption.landingPage);
-    }, 400);
+    try {
+      const resp = await loginApi(identifier.trim(), password);
+      loginWithUser(resp.user, resp.token);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal masuk. Periksa kembali NIM/NIDN/NIP dan kata sandi.";
+      setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleQuickLogin = (role: Role) => {
+  const handleQuickLogin = async (role: Role) => {
     setErrorMsg(null);
     setIsLoading(true);
     const opt = ROLE_OPTIONS.find((r) => r.id === role);
-    setTimeout(() => {
-      login(role);
-      router.push(opt ? opt.landingPage : "/dashboard");
-    }, 300);
+    const idToUse = opt ? opt.defaultId : "20210801142";
+    const passToUse = "password123";
+
+    try {
+      const resp = await loginApi(idToUse, passToUse);
+      loginWithUser(resp.user, resp.token);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal login otomatis.";
+      setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

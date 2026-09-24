@@ -14,30 +14,37 @@ import {
   Database,
 } from "lucide-react";
 import { getStatusBadgeClass } from "@/lib/formatters";
-import { getAllDocumentsApi, ApiDocument } from "@/lib/api";
+import { getCheckHistoryApi, CheckHistoryItem } from "@/lib/api";
+import { useRole } from "@/context/RoleContext";
 
-interface DisplayDocument {
+interface DisplayCheck {
   id: number;
+  documentId: number;
   title: string;
   type: string;
   date: string;
   filePath: string;
+  similarity: string;
+  similarityScore: number;
+  ownerName: string;
+  ownerIdentifier: string;
   status: string;
 }
 
 export default function RiwayatPage() {
-  const [documents, setDocuments] = useState<DisplayDocument[]>([]);
+  const { currentRole, rawUser } = useRole();
+  const [checks, setChecks] = useState<DisplayCheck[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("Semua");
 
-  const formatDocs = (data: ApiDocument[]): DisplayDocument[] => {
-    return data.map((doc) => {
+  const formatChecks = (data: CheckHistoryItem[]): DisplayCheck[] => {
+    return data.map((item) => {
       let formattedDate = "-";
-      if (doc.created_at) {
+      if (item.created_at) {
         try {
-          const d = new Date(doc.created_at);
+          const d = new Date(item.created_at);
           formattedDate = d.toLocaleDateString("id-ID", {
             day: "numeric",
             month: "short",
@@ -46,33 +53,38 @@ export default function RiwayatPage() {
             minute: "2-digit",
           });
         } catch {
-          formattedDate = doc.created_at;
+          formattedDate = item.created_at;
         }
       }
 
       return {
-        id: doc.id,
-        title: doc.title,
-        type: doc.document_type ? doc.document_type.toUpperCase() : "SKRIPSI",
+        id: item.id,
+        documentId: item.document_id,
+        title: item.title,
+        type: item.document_type ? item.document_type.toUpperCase() : "SKRIPSI",
         date: formattedDate,
-        filePath: doc.file_path,
-        status: "Tersimpan",
+        filePath: item.file_path,
+        similarity: item.similarity_percentage || `${Math.round(item.overall_similarity * 100)}%`,
+        similarityScore: item.overall_similarity,
+        ownerName: item.owner_name || "Anonim",
+        ownerIdentifier: item.owner_identifier || "-",
+        status: item.status === "completed" ? "Selesai" : item.status,
       };
     });
   };
 
-  const loadDocuments = async () => {
+  const loadHistory = async () => {
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const data: ApiDocument[] = await getAllDocumentsApi();
-      setDocuments(formatDocs(data));
+      const data = await getCheckHistoryApi();
+      setChecks(formatChecks(data));
     } catch (err: unknown) {
       const msg =
         err instanceof Error
           ? err.message
-          : "Gagal memuat dokumen dari server FastAPI. Pastikan backend aktif.";
+          : "Gagal memuat riwayat pengecekan dari server FastAPI.";
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
@@ -81,10 +93,10 @@ export default function RiwayatPage() {
 
   useEffect(() => {
     let ignore = false;
-    getAllDocumentsApi()
+    getCheckHistoryApi()
       .then((data) => {
         if (!ignore) {
-          setDocuments(formatDocs(data));
+          setChecks(formatChecks(data));
           setIsLoading(false);
         }
       })
@@ -93,7 +105,7 @@ export default function RiwayatPage() {
           const msg =
             err instanceof Error
               ? err.message
-              : "Gagal memuat dokumen dari server FastAPI. Pastikan backend aktif.";
+              : "Gagal memuat riwayat pengecekan dari server FastAPI.";
           setErrorMessage(msg);
           setIsLoading(false);
         }
@@ -102,17 +114,41 @@ export default function RiwayatPage() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [currentRole, rawUser?.id]);
 
-  // Filtered dataset based on search and type selector
-  const filteredData = documents.filter((doc) => {
+  const filteredData = checks.filter((item) => {
     const matchSearch =
-      doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.id.toString().includes(searchTerm);
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.ownerIdentifier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.id.toString().includes(searchTerm);
     const matchType =
-      selectedType === "Semua" || doc.type.toLowerCase() === selectedType.toLowerCase();
+      selectedType === "Semua" || item.type.toLowerCase() === selectedType.toLowerCase();
     return matchSearch && matchType;
   });
+
+  const getSimilarityBadge = (score: number, text: string) => {
+    const pct = score * 100;
+    if (pct < 20) {
+      return (
+        <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+          {text} (Rendah)
+        </span>
+      );
+    }
+    if (pct < 40) {
+      return (
+        <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+          {text} (Sedang)
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-800">
+        {text} (Tinggi)
+      </span>
+    );
+  };
 
   return (
     <DashboardLayout title="Riwayat Pengecekan">
@@ -125,10 +161,14 @@ export default function RiwayatPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800">
-                Riwayat Dokumen Repositori Kampus
+                {currentRole === "mahasiswa"
+                  ? "Riwayat Pengecekan Naskah Saya"
+                  : "Log & Riwayat Pengecekan Repositori"}
               </h2>
               <p className="text-xs text-gray-500">
-                Data dokumen tersimpan di PostgreSQL melalui backend FastAPI (GET /api/documents/).
+                {currentRole === "mahasiswa"
+                  ? "Daftar naskah dan hasil verifikasi kemiripan yang pernah Anda periksa."
+                  : "Daftar seluruh riwayat pengecekan naskah mahasiswa terhadap repositori kampus."}
               </p>
             </div>
           </div>
@@ -136,38 +176,39 @@ export default function RiwayatPage() {
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={loadDocuments}
+              onClick={loadHistory}
               disabled={isLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-xs"
-              title="Muat ulang dari server"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-2xs"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-red-600" : ""}`} />
               <span>Muat Ulang</span>
             </button>
 
-            <Link
-              href="/upload"
-              className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-red-700 transition-colors"
-            >
-              <UploadCloud className="h-4 w-4" />
-              <span>Unggah Naskah</span>
-            </Link>
+            {currentRole === "mahasiswa" && (
+              <Link
+                href="/upload"
+                className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-red-700 transition-colors"
+              >
+                <UploadCloud className="h-4 w-4" />
+                <span>Unggah Naskah Baru</span>
+              </Link>
+            )}
           </div>
         </div>
 
-        {/* Error Alert if backend unreachable */}
+        {/* Error Alert */}
         {errorMessage && (
-          <div className="flex items-start justify-between gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-xs font-medium text-yellow-800 shadow-xs">
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-xs font-medium text-yellow-800 shadow-2xs">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="h-5 w-5 shrink-0 text-yellow-600 mt-0.5" />
               <div>
-                <p className="font-bold">Koneksi Backend FastAPI Terkendala</p>
+                <p className="font-bold">Koneksi Backend Terkendala</p>
                 <p className="mt-0.5 text-yellow-700">{errorMessage}</p>
               </div>
             </div>
             <button
               type="button"
-              onClick={loadDocuments}
+              onClick={loadHistory}
               className="rounded-md border border-yellow-300 bg-white px-3 py-1 text-xs font-semibold text-yellow-800 hover:bg-yellow-100 shrink-0"
             >
               Coba Lagi
@@ -175,23 +216,21 @@ export default function RiwayatPage() {
           </div>
         )}
 
-        {/* Filter and Search Bar (Only shown if documents exist) */}
-        {!isLoading && documents.length > 0 && (
+        {/* Filter and Search Bar */}
+        {!isLoading && checks.length > 0 && (
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col md:flex-row items-center gap-3">
-              {/* Search input */}
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Cari berdasarkan judul naskah atau ID dokumen..."
+                  placeholder="Cari berdasarkan judul naskah, nama mahasiswa, atau NIM..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full rounded-lg border border-gray-200 bg-gray-50/50 pl-9 pr-4 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:border-red-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-red-600"
                 />
               </div>
 
-              {/* Filter by Type */}
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <select
                   value={selectedType}
@@ -207,40 +246,14 @@ export default function RiwayatPage() {
           </div>
         )}
 
-        {/* Content: Skeleton Loader vs Table vs Empty State */}
+        {/* Content Table */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           {isLoading ? (
-            /* Skeleton Loading State active while fetch is pending */
-            <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
-                <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-              </div>
-              <div className="space-y-3">
-                {[1, 2, 3, 4, 5].map((idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3.5 bg-gray-50/70 rounded-lg animate-pulse"
-                  >
-                    <div className="space-y-2 flex-1">
-                      <div className="h-3.5 w-3/4 bg-gray-200 rounded" />
-                      <div className="h-2.5 w-1/4 bg-gray-200 rounded" />
-                    </div>
-                    <div className="flex items-center gap-4 shrink-0 ml-4">
-                      <div className="h-5 w-16 bg-gray-200 rounded-md" />
-                      <div className="h-4 w-24 bg-gray-200 rounded" />
-                      <div className="h-6 w-16 bg-gray-200 rounded-full" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-center text-xs text-gray-400 pt-2 flex items-center justify-center gap-2">
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                <span>Memuat data dokumen dari server FastAPI...</span>
-              </p>
+            <div className="p-8 text-center text-xs text-gray-400 space-y-2">
+              <RefreshCw className="h-6 w-6 animate-spin text-red-600 mx-auto" />
+              <p>Memuat riwayat pengecekan dari database PostgreSQL...</p>
             </div>
-          ) : documents.length === 0 ? (
-            /* Clean Empty State UI when backend returns 0 documents */
+          ) : checks.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-14 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400 mb-4">
                 <FileText className="h-8 w-8 text-gray-400" />
@@ -249,20 +262,23 @@ export default function RiwayatPage() {
                 Belum ada riwayat pengecekan dokumen.
               </h3>
               <p className="mt-1.5 max-w-sm text-xs text-gray-400 leading-relaxed">
-                Naskah skripsi atau proposal yang Anda unggah ke server akan tercatat di database repositori dan ditampilkan di halaman ini.
+                {currentRole === "mahasiswa"
+                  ? "Naskah yang Anda unggah akan otomatis dihitung tingkat kemiripannya dan dicatat pada halaman ini."
+                  : "Belum ada mahasiswa yang mengunggah naskah atau melakukan pengecekan ke repositori."}
               </p>
-              <div className="mt-6">
-                <Link
-                  href="/upload"
-                  className="inline-flex items-center gap-2 rounded-md bg-red-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-red-700 shadow-xs transition-colors"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  <span>Unggah Dokumen Sekarang</span>
-                </Link>
-              </div>
+              {currentRole === "mahasiswa" && (
+                <div className="mt-6">
+                  <Link
+                    href="/upload"
+                    className="inline-flex items-center gap-2 rounded-md bg-red-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-red-700 shadow-xs transition-colors"
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    <span>Unggah Dokumen Sekarang</span>
+                  </Link>
+                </div>
+              )}
             </div>
           ) : filteredData.length === 0 ? (
-            /* Search zero result state */
             <div className="flex flex-col items-center justify-center p-10 text-center">
               <p className="text-xs font-bold text-gray-700">
                 Tidak ada dokumen yang cocok dengan kata kunci &quot;{searchTerm}&quot;
@@ -279,7 +295,6 @@ export default function RiwayatPage() {
               </button>
             </div>
           ) : (
-            /* Connected Data Table */
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -290,8 +305,16 @@ export default function RiwayatPage() {
                     <th className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
                       Judul Naskah
                     </th>
+                    {currentRole !== "mahasiswa" && (
+                      <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        Pemilik (Mahasiswa)
+                      </th>
+                    )}
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
                       Jenis
+                    </th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Skor Kemiripan
                     </th>
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
                       Tanggal
@@ -305,38 +328,47 @@ export default function RiwayatPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-xs">
-                  {filteredData.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-gray-50/70 transition-colors">
+                  {filteredData.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="px-6 py-4 font-mono text-gray-400 font-semibold">
-                        #{doc.id}
+                        #{item.id}
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-semibold text-gray-900 line-clamp-1">
-                          {doc.title}
+                          {item.title}
                         </div>
                         <div className="text-[11px] text-gray-400 truncate max-w-md font-mono mt-0.5">
-                          {doc.filePath}
+                          Dokumen ID #{item.documentId}
                         </div>
                       </td>
+                      {currentRole !== "mahasiswa" && (
+                        <td className="px-4 py-4">
+                          <div className="font-semibold text-gray-800">{item.ownerName}</div>
+                          <div className="text-[11px] text-gray-400 font-mono">{item.ownerIdentifier}</div>
+                        </td>
+                      )}
                       <td className="px-4 py-4">
                         <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
-                          {doc.type}
+                          {item.type}
                         </span>
                       </td>
+                      <td className="px-4 py-4">
+                        {getSimilarityBadge(item.similarityScore, item.similarity)}
+                      </td>
                       <td className="px-4 py-4 text-gray-500 whitespace-nowrap">
-                        {doc.date}
+                        {item.date}
                       </td>
                       <td className="px-4 py-4">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(
-                            doc.status
+                            item.status
                           )}`}
                         >
-                          {doc.status}
+                          {item.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        {currentRole === "mahasiswa" ? (
                           <Link
                             href="/upload"
                             className="inline-flex items-center gap-1 rounded bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
@@ -344,23 +376,26 @@ export default function RiwayatPage() {
                             <FileCheck2 className="h-3.5 w-3.5" />
                             <span>Cek Ulang</span>
                           </Link>
-                        </div>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            Tervalidasi
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              {/* Table Footer */}
               <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1.5">
                   <Database className="h-3.5 w-3.5 text-green-600" />
                   <span>
-                    Terhubung ke PostgreSQL: <strong className="text-gray-800">{filteredData.length}</strong> dokumen
+                    Total riwayat terdata: <strong className="text-gray-800">{filteredData.length}</strong>
                   </span>
                 </span>
                 <span className="text-[11px] text-gray-400">
-                  Data real-time dari backend FastAPI
+                  Data otomatis terhubung ke akun pengguna
                 </span>
               </div>
             </div>

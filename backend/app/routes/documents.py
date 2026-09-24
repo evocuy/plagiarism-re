@@ -1,12 +1,13 @@
 import shutil
 from pathlib import Path
+from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from app.models.schemas import PlagiarismCheck
-from ..database.session import get_db
-from ..models.schemas import Document
+from app.database.session import get_db
+from app.models.schemas import Document, User
+from app.routes.auth import get_optional_current_user, get_current_user
 
 router = APIRouter()
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
@@ -16,7 +17,9 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 async def upload_document(
     file: UploadFile = File(...),
     document_type: str = Form(...),
-    db: Session = Depends(get_db)
+    user_id: Optional[int] = Form(None),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
 ):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Hanya file PDF yang diizinkan.")
@@ -29,11 +32,18 @@ async def upload_document(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Simpan ke PostgreSQL dengan tipe dokumen dinamis
+    # Kaitkan dokumen dengan user ID jika ada session / parameter
+    effective_user_id = None
+    if current_user:
+        effective_user_id = current_user.id
+    elif user_id:
+        effective_user_id = user_id
+
     db_doc = Document(
+        user_id=effective_user_id,
         title=file.filename,
         document_type=clean_type,
-        file_path=str(file_path)
+        file_path=str(file_path),
     )
     db.add(db_doc)
     db.commit()
@@ -41,23 +51,46 @@ async def upload_document(
 
     return {
         "id": db_doc.id,
+        "user_id": db_doc.user_id,
         "filename": db_doc.title,
         "document_type": db_doc.document_type,
         "file_path": db_doc.file_path,
-        "message": f"File berhasil diunggah sebagai dokumen {db_doc.document_type.upper()} dan tersimpan di database."
+        "message": f"File berhasil diunggah sebagai dokumen {db_doc.document_type.upper()} dan tersimpan di database.",
     }
 
 @router.get("/")
-def get_all_documents(db: Session = Depends(get_db)):
-    return db.query(Document).all()
+def get_all_documents(
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Jika login sebagai mahasiswa, hanya tampilkan dokumen miliknya.
+    Jika login sebagai dosen atau admin, tampilkan seluruh dokumen repositori.
+    """
+    query = db.query(Document)
+    if current_user and current_user.role == "mahasiswa":
+        query = query.filter(Document.user_id == current_user.id)
+
+    docs = query.order_by(Document.created_at.desc()).all()
+    results = []
+    for doc in docs:
+        results.append({
+            "id": doc.id,
+            "user_id": doc.user_id,
+            "owner_name": doc.user.name if doc.user else "Anonim",
+            "owner_identifier": doc.user.identifier if doc.user else "-",
+            "title": doc.title,
+            "document_type": doc.document_type,
+            "file_path": doc.file_path,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+        })
+    return results
 
 @router.delete("/clear")
 def clear_all_documents(db: Session = Depends(get_db)):
-    # 1. Hapus seluruh isi tabel dan reset urutan ID (auto-increment) ke angka 1
     db.execute(text("TRUNCATE TABLE documents, plagiarism_checks RESTART IDENTITY CASCADE;"))
     db.commit()
 
-    # 2. Hapus seluruh file PDF fisik di folder uploads
     for file_path in UPLOAD_DIR.glob("*.pdf"):
         try:
             file_path.unlink()

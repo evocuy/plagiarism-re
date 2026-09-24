@@ -23,8 +23,10 @@ import {
   CheckRepositoryResponse,
   UploadResponse,
 } from "@/lib/api";
+import { useRole } from "@/context/RoleContext";
 
 export default function UploadPage() {
+  const { rawUser } = useRole();
   const [file, setFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -84,21 +86,23 @@ export default function UploadPage() {
     setAnalysisResult(null);
 
     try {
-      // 1. Send multipart/form-data POST request to FastAPI /api/documents/upload with document_type
-      const uploadRes = await uploadDocumentApi(file, documentType);
+      // 1. Send multipart/form-data POST request to FastAPI /api/documents/upload with document_type and user_id
+      const uploadRes = await uploadDocumentApi(file, documentType, rawUser?.id);
       setUploadedDoc(uploadRes);
       setUploadSuccessMessage(
         uploadRes.message || `File ${uploadRes.filename} berhasil diunggah sebagai ${documentType.toUpperCase()}.`
       );
 
-      // 2. Trigger repository similarity comparison if possible
+      // 2. Trigger repository similarity comparison
       try {
         const checkRes = await checkRepositoryApi(uploadRes.id);
         setAnalysisResult(checkRes);
+        setUploadSuccessMessage(
+          `Dokumen '${uploadRes.filename}' berhasil diunggah dan diverifikasi kemiripannya (${checkRes.highest_similarity_percentage}) terhadap ${checkRes.total_repository_checked} naskah repositori.`
+        );
       } catch (checkErr: unknown) {
-        // If repository is empty or check error occurs, still keep the successful upload info
         const checkMsg = checkErr instanceof Error ? checkErr.message : "Tidak dapat mengecek repositori.";
-        console.warn("Repository comparison note:", checkMsg);
+        setUploadError(`Dokumen berhasil diunggah (ID #${uploadRes.id}), namun pengecekan repositori terkendala: ${checkMsg}`);
       }
     } catch (err: unknown) {
       const message =
@@ -372,14 +376,14 @@ export default function UploadPage() {
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="flex items-center gap-2 text-red-900">
                   <RefreshCw className="h-4 w-4 animate-spin text-red-600" />
-                  <span>Mengirimkan berkas ke FastAPI server (/api/documents/upload)...</span>
+                  <span>Sedang mengunggah dokumen & menjalankan pengecekan plagiarisme (TF-IDF)...</span>
                 </span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
                 <div className="h-full bg-red-600 animate-pulse w-full" />
               </div>
               <p className="text-[11px] text-gray-500 text-center">
-                Mohon tunggu, server sedang menyimpan dokumen sebagai {documentType.toUpperCase()} dan memproses perbandingan TF-IDF.
+                Mohon tunggu, berkas PDF sedang diekstraksi dan dibandingkan kemiripannya terhadap seluruh naskah di repositori kampus.
               </p>
             </div>
           )}
