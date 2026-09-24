@@ -4,88 +4,76 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRole, MOCK_PROFILES } from "@/context/RoleContext";
 import { Role } from "@/types/role";
+import { loginApi } from "@/lib/api";
 import {
-  ShieldCheck,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2,
+  AlertCircle,
   GraduationCap,
   Briefcase,
   Shield,
-  ArrowRight,
-  Lock,
-  User,
   Sparkles,
-  CheckCircle2,
-  Info,
+  LogIn,
 } from "lucide-react";
 
-interface RoleTabOption {
+interface RoleOption {
   id: Role;
-  title: string;
-  subtitle: string;
-  badge: string;
-  icon: React.ComponentType<{ className?: string }>;
+  label: string;
   idLabel: string;
+  placeholder: string;
   defaultId: string;
-  description: string;
-  landingPage: string;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
-const ROLE_OPTIONS: RoleTabOption[] = [
+const ROLES: RoleOption[] = [
   {
     id: "mahasiswa",
-    title: "Mahasiswa",
-    subtitle: "Mahasiswa Bimbingan",
-    badge: "Student Portal",
-    icon: GraduationCap,
-    idLabel: "Nomor Induk Mahasiswa (NIM)",
+    label: "Mahasiswa",
+    idLabel: "NIM / Username",
+    placeholder: "Masukkan NIM (contoh: 20210801142)",
     defaultId: "20210801142",
-    description: "Unggah naskah skripsi atau proposal sempro, periksa persentase kemiripan repositori kampus.",
-    landingPage: "/dashboard",
+    icon: GraduationCap,
   },
   {
     id: "dosen",
-    title: "Dosen Pembimbing",
-    subtitle: "Dosen & Penguji",
-    badge: "Lecturer Portal",
-    icon: Briefcase,
-    idLabel: "Nomor Induk Dosen Nasional (NIDN)",
+    label: "Dosen",
+    idLabel: "NIDN / Username",
+    placeholder: "Masukkan NIDN (contoh: 0412087501)",
     defaultId: "0412087501",
-    description: "Tinjau naskah bimbingan mahasiswa, validasi tingkat plagiarisme, dan kelola antrean approval sidang.",
-    landingPage: "/dashboard",
+    icon: Briefcase,
   },
   {
     id: "admin",
-    title: "Super Admin",
-    subtitle: "Administrator IT",
-    badge: "Admin Console",
-    icon: Shield,
-    idLabel: "Nomor Induk Pegawai (NIP) / User ID",
+    label: "Admin",
+    idLabel: "NIP / Username",
+    placeholder: "Masukkan NIP (contoh: 198804152011011002)",
     defaultId: "198804152011011002",
-    description: "Kelola repositori dokumen kampus, pantau kinerja TF-IDF engine, dan pantau log sistem.",
-    landingPage: "/dashboard",
+    icon: Shield,
   },
 ];
-
-import { loginApi } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
   const { loginWithUser } = useRole();
 
   const [selectedRole, setSelectedRole] = useState<Role>("mahasiswa");
-  const [identifier, setIdentifier] = useState<string>(ROLE_OPTIONS[0].defaultId);
+  const [identifier, setIdentifier] = useState<string>(ROLES[0].defaultId);
   const [password, setPassword] = useState<string>("password123");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [rememberMe, setRememberMe] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const activeOption = ROLE_OPTIONS.find((r) => r.id === selectedRole) || ROLE_OPTIONS[0];
-  const ActiveIcon = activeOption.icon;
-  const mockUser = MOCK_PROFILES[selectedRole];
+  const activeRole = ROLES.find((r) => r.id === selectedRole) || ROLES[0];
 
   const handleRoleSelect = (role: Role) => {
     setSelectedRole(role);
-    const opt = ROLE_OPTIONS.find((r) => r.id === role);
-    if (opt) {
-      setIdentifier(opt.defaultId);
+    const target = ROLES.find((r) => r.id === role);
+    if (target) {
+      setIdentifier(target.defaultId);
       setPassword("password123");
     }
     setErrorMsg(null);
@@ -95,42 +83,47 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!identifier.trim()) {
-      setErrorMsg(`${activeOption.idLabel} tidak boleh kosong!`);
+    const cleanIdentifier = identifier.trim();
+    if (!cleanIdentifier) {
+      setErrorMsg(`${activeRole.idLabel} tidak boleh kosong.`);
       return;
     }
     if (!password.trim()) {
-      setErrorMsg("Kata sandi tidak boleh kosong!");
+      setErrorMsg("Kata sandi tidak boleh kosong.");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const resp = await loginApi(identifier.trim(), password);
+      const resp = await loginApi(cleanIdentifier, password);
       loginWithUser(resp.user, resp.token);
       router.push("/dashboard");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal masuk. Periksa kembali NIM/NIDN/NIP dan kata sandi.";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Gagal masuk. Silakan periksa kembali kredensial Anda.";
       setErrorMsg(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickLogin = async (role: Role) => {
+  const handleQuickDemo = async (role: Role) => {
     setErrorMsg(null);
     setIsLoading(true);
-    const opt = ROLE_OPTIONS.find((r) => r.id === role);
-    const idToUse = opt ? opt.defaultId : "20210801142";
-    const passToUse = "password123";
+    const target = ROLES.find((r) => r.id === role) || ROLES[0];
+    const demoId = target.defaultId;
+    const demoPass = "password123";
 
     try {
-      const resp = await loginApi(idToUse, passToUse);
+      const resp = await loginApi(demoId, demoPass);
       loginWithUser(resp.user, resp.token);
       router.push("/dashboard");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal login otomatis.";
+      const msg =
+        err instanceof Error ? err.message : "Gagal masuk ke akun pengujian.";
       setErrorMsg(msg);
     } finally {
       setIsLoading(false);
@@ -138,312 +131,230 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-red-50/20 to-gray-100 flex flex-col justify-between">
-      {/* Top Bar Branding */}
-      <header className="w-full border-b border-gray-200/80 bg-white/90 backdrop-blur-md px-6 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#cc1a22] text-white shadow-xs">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold tracking-wider text-gray-900">
-                PLAGIARISM CHECKER
-              </span>
-              <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
-                SADS KAMPUS
-              </span>
-            </div>
-            <p className="text-[11px] text-gray-500 hidden sm:block">
-              Sistem Pengecekan Kemiripan Dokumen Naskah Skripsi & Proposal
+    <div
+      className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 bg-cover bg-center bg-no-repeat bg-fixed selection:bg-red-600 selection:text-white"
+      style={{ backgroundImage: "url('/campus_bg.jpg')" }}
+    >
+      {/* Dark Semi-Transparent Overlay */}
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] transition-all" />
+
+      {/* Centered Login Card Container */}
+      <div className="relative z-10 w-full max-w-[440px] animate-in fade-in zoom-in-95 duration-300">
+        
+        {/* Main Clean White Card */}
+        <div className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl border border-white/40 p-6 sm:p-8 text-slate-800">
+          
+          {/* Card Header: Strictly Title, Subtitle, and Session Prompt */}
+          <div className="text-center mb-6">
+            {/* Title: Sistem Plagiarisme */}
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">
+              Sistem Plagiarisme
+            </h1>
+
+            {/* Subtitle: Pencegahan & Deteksi Dosen Mahasiswa */}
+            <p className="text-xs sm:text-sm font-semibold text-red-600 tracking-normal mt-1.5">
+              Pencegahan &amp; Deteksi Dosen Mahasiswa
+            </p>
+
+            {/* Instruction: Sign in to start your session */}
+            <p className="text-xs sm:text-sm text-slate-500 font-medium pt-2.5 border-t border-slate-200/80 mt-3">
+              Sign in to start your session
             </p>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
-          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>FastAPI Engine Online</span>
-        </div>
-      </header>
-
-      {/* Main Login Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Hero Card / Welcome */}
-          <div className="lg:col-span-5 space-y-6 text-left">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Portal Terpadu Multi-Peran</span>
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight leading-snug">
-                Masuk ke Sistem Pengecekan Plagiarisme
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                Pilih peran Anda untuk mengakses antarmuka yang disesuaikan dengan alur verifikasi akademik kampus.
-              </p>
-            </div>
-
-            {/* Role highlights */}
-            <div className="space-y-3 pt-2">
-              <div
-                onClick={() => handleRoleSelect("mahasiswa")}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                  selectedRole === "mahasiswa"
-                    ? "border-red-500 bg-white shadow-md ring-1 ring-red-500"
-                    : "border-gray-200 bg-white/60 hover:bg-white hover:border-gray-300"
-                }`}
-              >
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    selectedRole === "mahasiswa"
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900">Mahasiswa</h3>
-                    {selectedRole === "mahasiswa" && (
-                      <span className="text-[10px] font-bold text-red-600">Dipilih</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
-                    Unggah naskah skripsi/sempro dan dapatkan laporan kemiripan dengan repositori.
-                  </p>
-                </div>
-              </div>
-
-              <div
-                onClick={() => handleRoleSelect("dosen")}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                  selectedRole === "dosen"
-                    ? "border-red-500 bg-white shadow-md ring-1 ring-red-500"
-                    : "border-gray-200 bg-white/60 hover:bg-white hover:border-gray-300"
-                }`}
-              >
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    selectedRole === "dosen"
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  <Briefcase className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900">Dosen Pembimbing</h3>
-                    {selectedRole === "dosen" && (
-                      <span className="text-[10px] font-bold text-red-600">Dipilih</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
-                    Pantau daftar naskah bimbingan & validasi kelayakan sempro/sidang.
-                  </p>
-                </div>
-              </div>
-
-              <div
-                onClick={() => handleRoleSelect("admin")}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
-                  selectedRole === "admin"
-                    ? "border-red-500 bg-white shadow-md ring-1 ring-red-500"
-                    : "border-gray-200 bg-white/60 hover:bg-white hover:border-gray-300"
-                }`}
-              >
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    selectedRole === "admin"
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900">Super Admin</h3>
-                    {selectedRole === "admin" && (
-                      <span className="text-[10px] font-bold text-red-600">Dipilih</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
-                    Manajemen naskah repositori kampus, monitoring engine TF-IDF & server.
-                  </p>
-                </div>
-              </div>
+          {/* Role Tabs for Smooth Student / Lecturer Experience */}
+          <div className="mb-5">
+            <div className="flex items-center justify-center p-1 rounded-xl bg-slate-100/90 border border-slate-200/80">
+              {ROLES.map((r) => {
+                const Icon = r.icon;
+                const isSelected = selectedRole === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => handleRoleSelect(r.id)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                      isSelected
+                        ? "bg-white text-red-600 shadow-sm border border-slate-200/60"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                    }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${isSelected ? "text-red-600" : "text-slate-400"}`} />
+                    <span>{r.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Right Card: Login Form */}
-          <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-xl">
-              {/* Role Indicator Banner */}
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-700">
-                    <ActiveIcon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-gray-900">
-                        Masuk sebagai {activeOption.title}
-                      </h2>
-                      <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
-                        {activeOption.badge}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {mockUser.name} ({mockUser.programStudi})
-                    </p>
-                  </div>
+          {/* Error Alert Box */}
+          {errorMsg && (
+            <div className="mb-4 flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium animate-in fade-in duration-150">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{errorMsg}</div>
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            
+            {/* Username / NIM / NIP Input */}
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                {activeRole.idLabel}
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder={activeRole.placeholder}
+                  disabled={isLoading}
+                  required
+                  className="w-full pl-3.5 pr-10 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-red-600/20 focus:border-red-600 transition-all disabled:bg-slate-50"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="h-4 w-4" />
                 </div>
               </div>
+            </div>
 
-              {/* Error Alert */}
-              {errorMsg && (
-                <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">
-                  <Info className="h-4 w-4 shrink-0 text-red-600" />
-                  <span>{errorMsg}</span>
-                </div>
+            {/* Password Input */}
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi Anda"
+                  disabled={isLoading}
+                  required
+                  className="w-full pl-3.5 pr-10 py-2.5 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-red-600/20 focus:border-red-600 transition-all disabled:bg-slate-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember Me & Assistance Row */}
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 hover:text-slate-900">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                />
+                <span>Remember Me</span>
+              </label>
+
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  alert("Untuk kendala login atau lupa kata sandi, silakan hubungi Biro IT / Layanan Akademik.");
+                }}
+                className="font-medium text-red-600 hover:text-red-700 hover:underline"
+              >
+                Lupa Password?
+              </a>
+            </div>
+
+            {/* Solid Institutional Red Action Button: "Sign In" */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-sm font-bold shadow-md shadow-red-600/25 hover:shadow-lg hover:shadow-red-600/35 active:scale-[0.99] disabled:opacity-60 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                  <span>Memverifikasi...</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-4 w-4" />
+                  <span>Sign In</span>
+                </>
               )}
+            </button>
+          </form>
 
-              {/* Form */}
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    {activeOption.idLabel}
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder={activeOption.defaultId}
-                      className="w-full rounded-lg border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2.5 text-xs text-gray-800 font-medium placeholder:text-gray-400 focus:border-red-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-red-600 transition-colors"
-                      required
-                    />
-                  </div>
+          {/* Quick Demo Access Bar (Convenience for testing) */}
+          <div className="mt-6 pt-4 border-t border-slate-200/80">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-amber-500" />
+                Akses Cepat Pengujian
+              </span>
+              <span className="text-[10px] text-slate-400">1-Klik</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => handleQuickDemo("mahasiswa")}
+                className="p-1.5 rounded-lg border border-slate-200 bg-slate-50/80 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
+              >
+                <div className="text-[11px] font-bold text-slate-700 group-hover:text-red-600">
+                  Mahasiswa
                 </div>
+                <div className="text-[9px] text-slate-400 mt-0.5">NIM 142</div>
+              </button>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-gray-700">Kata Sandi</label>
-                    <span className="text-[11px] text-red-600 hover:underline cursor-pointer">
-                      Lupa sandi?
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full rounded-lg border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2.5 text-xs text-gray-800 font-medium placeholder:text-gray-400 focus:border-red-600 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-red-600 transition-colors"
-                      required
-                    />
-                  </div>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => handleQuickDemo("dosen")}
+                className="p-1.5 rounded-lg border border-slate-200 bg-slate-50/80 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
+              >
+                <div className="text-[11px] font-bold text-slate-700 group-hover:text-red-600">
+                  Dosen
                 </div>
+                <div className="text-[9px] text-slate-400 mt-0.5">Dr. Hendra</div>
+              </button>
 
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-600 py-3 text-xs font-bold text-white shadow-md hover:bg-red-700 disabled:opacity-50 transition-all cursor-pointer"
-                  >
-                    {isLoading ? (
-                      <span>Memverifikasi akun...</span>
-                    ) : (
-                      <>
-                        <span>Masuk ke {activeOption.title}</span>
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </button>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => handleQuickDemo("admin")}
+                className="p-1.5 rounded-lg border border-slate-200 bg-slate-50/80 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
+              >
+                <div className="text-[11px] font-bold text-slate-700 group-hover:text-red-600">
+                  Admin
                 </div>
-              </form>
-
-              {/* Quick Login Section (Convenience for testing & evaluation) */}
-              <div className="mt-6 pt-5 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Akses Cepat Pengujian (1-Klik):</span>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("mahasiswa")}
-                    className="flex flex-col items-center justify-center p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 group-hover:text-red-700">
-                      <GraduationCap className="h-4 w-4 text-red-600" />
-                      <span>Mahasiswa</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 group-hover:text-red-500 mt-0.5">
-                      Rizky (NIM 142)
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("dosen")}
-                    className="flex flex-col items-center justify-center p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 group-hover:text-red-700">
-                      <Briefcase className="h-4 w-4 text-red-600" />
-                      <span>Dosen</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 group-hover:text-red-500 mt-0.5">
-                      Dr. Hendra (NIDN)
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("admin")}
-                    className="flex flex-col items-center justify-center p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-300 transition-colors text-center group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 group-hover:text-red-700">
-                      <Shield className="h-4 w-4 text-red-600" />
-                      <span>Super Admin</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 group-hover:text-red-500 mt-0.5">
-                      Bambang (NIP)
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Note / Info */}
-              <div className="mt-4 rounded-lg bg-gray-50 p-2.5 text-[11px] text-gray-500 flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>
-                  Setelah masuk, halaman yang ditampilkan akan otomatis disesuaikan dengan peran yang dipilih (Mahasiswa, Dosen, atau Super Admin).
-                </span>
-              </div>
+                <div className="text-[9px] text-slate-400 mt-0.5">Bambang</div>
+              </button>
             </div>
           </div>
-        </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 bg-white py-4 px-6 text-center text-xs text-gray-500">
-        <p className="font-semibold text-gray-700">
-          Sistem Pengecekan Plagiarisme & Repositori Naskah Tugas Akhir
-        </p>
-        <p className="text-[11px] text-gray-400 mt-0.5">
-          Integrasi SADS Kampus • Engine: PyMuPDF + Sastrawi + TF-IDF + Cosine Similarity
-        </p>
-      </footer>
+        </div>
+
+        {/* Subtle Bottom Academic Footer */}
+        <div className="text-center mt-4">
+          <p className="text-xs text-white/80 font-medium drop-shadow-sm">
+            &copy; 2026 Repositori Karya Ilmiah Kampus
+          </p>
+          <p className="text-[11px] text-white/60 drop-shadow-sm">
+            Verifikasi Kemiripan Naskah Skripsi &amp; Seminar Proposal
+          </p>
+        </div>
+
+      </div>
     </div>
   );
 }

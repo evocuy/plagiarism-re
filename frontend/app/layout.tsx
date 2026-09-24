@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Plagiarism Checker - Portal SADS Kampus",
+  title: "Plagiarism Checker - Portal Verifikasi Orisinalitas",
   description: "Sistem Pengecekan Kemiripan Dokumen Naskah Skripsi & Seminar Proposal",
 };
 

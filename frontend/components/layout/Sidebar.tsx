@@ -180,8 +180,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Bottom Footer Info */}
         <div className="border-t border-gray-200 p-3 bg-white text-center text-[11px] text-gray-400">
-          <p className="font-semibold text-gray-500">SADS Kampus Portal</p>
-          <p className="text-[10px]">Plagiarism Engine v1.0 (Phase 1)</p>
+          <p className="font-semibold text-gray-500">Portal Plagiarism Checker</p>
+          <p className="text-[10px]">Similarity Engine v1.0</p>
         </div>
       </aside>
     </>

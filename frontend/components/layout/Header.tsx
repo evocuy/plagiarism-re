@@ -77,9 +77,6 @@ export default function Header({ onToggleSidebar, title = "Dashboard" }: HeaderP
             <h1 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">
               {title}
             </h1>
-            <span className="hidden sm:inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-              SADS Integrated
-            </span>
           </div>
           <p className="hidden text-xs text-gray-500 md:block">
             Sistem Pengecekan Kemiripan Dokumen Akademik

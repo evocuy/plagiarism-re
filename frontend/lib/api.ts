@@ -44,11 +44,20 @@ export async function apiFetch<T = unknown>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: "include",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+  } catch (err: unknown) {
+    const errorText = err instanceof Error ? err.message : String(err);
+    if (errorText.toLowerCase().includes("fetch") || errorText.toLowerCase().includes("network")) {
+      throw new Error(`Tidak dapat terhubung ke backend (${API_BASE}). Pastikan server FastAPI sudah dijalankan (uvicorn app.main:app --reload --port 8000).`);
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     let errorDetail = `HTTP ${response.status}: ${response.statusText}`;
