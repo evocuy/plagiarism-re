@@ -19,3 +19,6 @@ backend/uploads/*
 # IDE Settings
 .vscode/
 .DS_Store
+
+backend/venv/
+**/venv/

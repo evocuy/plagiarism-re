@@ -46,6 +46,7 @@ docker start plagiarism-db
 2. Aktifkan virtual environment (Windows PowerShell / CMD):
    ```bash
    .\.venv\Scripts\activate
+   source venv/Scripts/activate
    ```
 3. *(Opsional)* Pastikan seluruh dependensi terpasang:
    ```bash
