@@ -109,7 +109,7 @@ export default function MahasiswaDashboard() {
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500">Dokumen di Repositori</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800">
               <FileText className="h-4 w-4" />
             </div>
           </div>
@@ -245,7 +245,7 @@ export default function MahasiswaDashboard() {
                     <td className="px-6 py-4 text-right">
                       <Link
                         href="/riwayat"
-                        className="inline-flex items-center gap-1 rounded bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors shadow-2xs"
                       >
                         <FileCheck2 className="h-3.5 w-3.5" />
                         <span>Detail</span>

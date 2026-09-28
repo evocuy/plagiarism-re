@@ -371,7 +371,7 @@ export default function KelolaRepositoriPage() {
         {/* Info Card on Repository Seeding */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div className="space-y-1">

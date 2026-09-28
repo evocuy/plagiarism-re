@@ -262,7 +262,7 @@ export default function UploadPage() {
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
                     documentType === "proposal"
                       ? "bg-red-600 text-white shadow-xs"
-                      : "bg-blue-50 text-blue-700"
+                      : "bg-gray-100 text-gray-700"
                   }`}
                 >
                   <BookOpen className="h-5 w-5" />
@@ -270,7 +270,7 @@ export default function UploadPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-gray-900">Proposal Seminar (Sempro)</h4>
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
                       Bab 1 - 3
                     </span>
                   </div>
@@ -464,7 +464,7 @@ export default function UploadPage() {
                       <span className="font-semibold text-gray-800 truncate mr-3">
                         {match.title}
                       </span>
-                      <span className="font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full shrink-0">
+                      <span className="font-bold text-red-700 bg-red-100 px-2.5 py-0.5 rounded-full shrink-0">
                         {match.similarity_percentage}
                       </span>
                     </div>

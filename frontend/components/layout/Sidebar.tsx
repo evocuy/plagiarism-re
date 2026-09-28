@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   GraduationCap,
   X,
+  BarChart3,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -33,6 +34,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText,
   UserCheck,
   Settings,
+  BarChart3,
 };
 
 interface SidebarProps {

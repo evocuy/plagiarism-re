@@ -145,7 +145,7 @@ export default function KelolaPenggunaPage() {
     switch (role) {
       case "mahasiswa":
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-gray-800">
             <GraduationCap className="h-3 w-3" />
             <span>Mahasiswa</span>
           </span>

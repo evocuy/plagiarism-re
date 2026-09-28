@@ -371,7 +371,7 @@ export default function RiwayatPage() {
                         {currentRole === "mahasiswa" ? (
                           <Link
                             href="/upload"
-                            className="inline-flex items-center gap-1 rounded bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors shadow-2xs"
                           >
                             <FileCheck2 className="h-3.5 w-3.5" />
                             <span>Cek Ulang</span>

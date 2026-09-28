@@ -182,7 +182,7 @@ export default function DosenDashboard() {
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500">Mahasiswa Bimbingan</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-800">
               <Users className="h-4 w-4" />
             </div>
           </div>
@@ -362,7 +362,7 @@ export default function DosenDashboard() {
                           </span>
                           <button
                             type="button"
-                            className="inline-flex items-center gap-1 rounded bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700 transition-colors shadow-2xs"
                           >
                             <FileSearch className="h-3.5 w-3.5" />
                             <span>Detail</span>
@@ -379,22 +379,22 @@ export default function DosenDashboard() {
       </div>
 
       {/* Ethical Guidance for Supervisor Card */}
-      <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-6 shadow-sm">
+      <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-6 shadow-2xs">
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-700">
             <Info className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-blue-900">
+            <h3 className="text-sm font-bold text-gray-900">
               Prinsip Evaluasi Kemiripan Dokumen bagi Dosen Pembimbing
             </h3>
-            <p className="text-xs text-blue-800 leading-relaxed">
+            <p className="text-xs text-gray-600 leading-relaxed">
               Tingkat persentase kemiripan (similarity score) dihasilkan oleh perhitungan TF-IDF dan Cosine Similarity terhadap repositori kampus. Persentase kemiripan <strong>bukan vonis plagiarisme mutlak</strong>. Dosen pembimbing memegang wewenang penuh untuk meninjau konteks sitasi dan memutuskan apakah naskah layak disetujui atau memerlukan revisi.
             </p>
             <div className="pt-2">
               <Link
                 href="/panduan"
-                className="text-xs font-semibold text-blue-700 hover:underline inline-flex items-center gap-1"
+                className="text-xs font-semibold text-red-700 hover:underline inline-flex items-center gap-1"
               >
                 Lihat Panduan Pengecekan Bab per Bab &rarr;
               </Link>

@@ -80,6 +80,7 @@ export const ROLE_NAVIGATION: Record<Role, NavCategory[]> = {
         { name: "Kelola Repositori", href: "/kelola-repositori", iconName: "Database" },
         { name: "Log Pengecekan", href: "/riwayat", iconName: "FileText" },
         { name: "Kelola Pengguna", href: "/kelola-pengguna", iconName: "UserCheck" },
+        { name: "Kelola Laporan", href: "/kelola-laporan", iconName: "BarChart3" },
       ],
     },
     {
@@ -95,7 +96,7 @@ export const ROLE_NAVIGATION: Record<Role, NavCategory[]> = {
 export const ROLE_ALLOWED_ROUTES: Record<Role, string[]> = {
   mahasiswa: ["/dashboard", "/upload", "/riwayat", "/panduan", "/bantuan"],
   dosen: ["/dashboard", "/dokumen-bimbingan", "/riwayat-approval", "/panduan", "/bantuan"],
-  admin: ["/dashboard", "/kelola-repositori", "/riwayat", "/kelola-pengguna", "/panduan", "/bantuan"],
+  admin: ["/dashboard", "/kelola-repositori", "/riwayat", "/kelola-pengguna", "/kelola-laporan", "/panduan", "/bantuan"],
 };
 
 export function isRouteAllowedForRole(role: Role, pathname: string): boolean {

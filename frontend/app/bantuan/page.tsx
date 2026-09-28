@@ -97,7 +97,7 @@ export default function BantuanPage() {
 
           {/* Card 3: Lokasi & Jam Operasional */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700 mb-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-700 mb-3">
               <Clock className="h-5 w-5" />
             </div>
             <h3 className="text-xs font-bold text-gray-800">Jam Operasional</h3>
