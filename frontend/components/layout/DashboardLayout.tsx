@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, ReactNode } from "react";
+import React, { useState, useEffect, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
@@ -13,7 +13,7 @@ interface DashboardLayoutProps {
   title?: string;
 }
 
-export default function DashboardLayout({ children, title }: DashboardLayoutProps) {
+function RealDashboardLayout({ children, title }: DashboardLayoutProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { currentRole, currentUser, isAllowedRoute } = useRole();
@@ -74,4 +74,24 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
       </div>
     </div>
   );
+}
+
+export default function DashboardLayout({ children, title }: DashboardLayoutProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-sm font-medium text-gray-500 animate-pulse">
+          Memuat Sistem...
+        </div>
+      </div>
+    );
+  }
+
+  return <RealDashboardLayout title={title}>{children}</RealDashboardLayout>;
 }

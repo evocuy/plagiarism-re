@@ -43,7 +43,12 @@ export default function Header({ onToggleSidebar, title = "Dashboard" }: HeaderP
   const router = useRouter();
   const { currentRole, currentUser, logout } = useRole();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Close notification popover on outside click
   useEffect(() => {
@@ -55,6 +60,47 @@ export default function Header({ onToggleSidebar, title = "Dashboard" }: HeaderP
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Strict mounting shield: identical static header shell on SSR and initial client pass
+  if (!isMounted) {
+    return (
+      <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white px-4 md:px-8">
+        {/* Left side: Hamburger Toggle & Page Title */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 md:hidden"
+            aria-label="Toggle Navigation Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg md:text-xl font-bold text-gray-800 tracking-tight">
+                {title}
+              </h1>
+            </div>
+            <p className="hidden text-xs text-gray-500 md:block">
+              Sistem Pengecekan Kemiripan Dokumen Akademik
+            </p>
+          </div>
+        </div>
+
+        {/* Right side: Static placeholder */}
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full text-gray-400">
+            <Bell className="h-5 w-5" />
+          </div>
+
+          <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-400 shadow-2xs">
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Keluar</span>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   const activeRoleConfig = ROLES.find((r) => r.id === currentRole) || ROLES[0];
   const RoleIcon = activeRoleConfig.icon;
@@ -125,7 +171,7 @@ export default function Header({ onToggleSidebar, title = "Dashboard" }: HeaderP
         </div>
 
         {/* Locked Active Role Badge (Terkunci Sesuai Akun Login) */}
-        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs">
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs min-h-[38px]">
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-red-100 text-red-700">
             <RoleIcon className="h-3.5 w-3.5" />
           </div>
