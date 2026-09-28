@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRole } from "@/context/RoleContext";
@@ -43,6 +43,11 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { currentUser, navigation } = useRole();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <>
@@ -89,20 +94,33 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* User Profile Section */}
         <div className="border-b border-gray-200 bg-gray-50/70 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-700 text-sm font-bold text-white shadow-xs">
-              {currentUser.initials}
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-700 text-sm font-bold text-white shadow-xs"
+              suppressHydrationWarning
+            >
+              {isMounted ? currentUser?.initials || "" : ""}
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-sm font-semibold text-gray-800" title={currentUser.name}>
-                {currentUser.name}
+              <h3
+                className="truncate text-sm font-semibold text-gray-800"
+                title={isMounted ? currentUser?.name : ""}
+                suppressHydrationWarning
+              >
+                {isMounted ? currentUser?.name || "" : ""}
               </h3>
-              <p className="truncate text-xs font-medium text-gray-500">
-                {currentUser.identifierType}: {currentUser.identifier}
+              <p
+                className="truncate text-xs font-medium text-gray-500"
+                suppressHydrationWarning
+              >
+                {isMounted && currentUser ? `${currentUser.identifierType}: ${currentUser.identifier}` : ""}
               </p>
               <div className="mt-1">
-                <span className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800">
+                <span
+                  className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800"
+                  suppressHydrationWarning
+                >
                   <GraduationCap className="h-3 w-3" />
-                  {currentUser.roleLabel}
+                  {isMounted ? currentUser?.roleLabel || "" : ""}
                 </span>
               </div>
             </div>
