@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Database,
 } from "lucide-react";
-import { getStatusBadgeClass } from "@/lib/formatters";
+import { getStatusBadgeClass, getApprovalStatusLabel } from "@/lib/formatters";
 import { getCheckHistoryApi, CheckHistoryItem } from "@/lib/api";
 import { useRole } from "@/context/RoleContext";
 
@@ -29,6 +29,7 @@ interface DisplayCheck {
   ownerName: string;
   ownerIdentifier: string;
   status: string;
+  approvalStatus: string;
 }
 
 export default function RiwayatPage() {
@@ -38,6 +39,7 @@ export default function RiwayatPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("Semua");
+  const [selectedStatus, setSelectedStatus] = useState("Semua");
 
   const formatChecks = (data: CheckHistoryItem[]): DisplayCheck[] => {
     return data.map((item) => {
@@ -69,6 +71,7 @@ export default function RiwayatPage() {
         ownerName: item.owner_name || "Anonim",
         ownerIdentifier: item.owner_identifier || "-",
         status: item.status === "completed" ? "Selesai" : item.status,
+        approvalStatus: item.approval_status || "belum disetujui",
       };
     });
   };
@@ -124,7 +127,9 @@ export default function RiwayatPage() {
       item.id.toString().includes(searchTerm);
     const matchType =
       selectedType === "Semua" || item.type.toLowerCase() === selectedType.toLowerCase();
-    return matchSearch && matchType;
+    const matchStatus =
+      selectedStatus === "Semua" || item.approvalStatus.toLowerCase() === selectedStatus.toLowerCase();
+    return matchSearch && matchType && matchStatus;
   });
 
   const getSimilarityBadge = (score: number, text: string) => {
@@ -231,15 +236,26 @@ export default function RiwayatPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                 <select
                   value={selectedType}
                   onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full md:w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 focus:border-red-600 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+                  className="w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 focus:border-red-600 focus:outline-hidden focus:ring-1 focus:ring-red-600"
                 >
                   <option value="Semua">Semua Jenis Naskah</option>
                   <option value="SKRIPSI">Skripsi</option>
                   <option value="PROPOSAL">Proposal</option>
+                </select>
+
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 focus:border-red-600 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+                >
+                  <option value="Semua">Semua Status</option>
+                  <option value="belum disetujui">Belum Disetujui</option>
+                  <option value="disetujui">Disetujui</option>
+                  <option value="revisi">Revisi</option>
                 </select>
               </div>
             </div>
@@ -288,6 +304,7 @@ export default function RiwayatPage() {
                 onClick={() => {
                   setSearchTerm("");
                   setSelectedType("Semua");
+                  setSelectedStatus("Semua");
                 }}
                 className="mt-2 text-xs font-semibold text-red-600 hover:underline"
               >
@@ -361,10 +378,10 @@ export default function RiwayatPage() {
                       <td className="px-4 py-4">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(
-                            item.status
+                            item.approvalStatus
                           )}`}
                         >
-                          {item.status}
+                          {getApprovalStatusLabel(item.approvalStatus)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">

@@ -4,7 +4,7 @@ from typing import Literal, Optional, List
 
 import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Header, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
@@ -67,17 +67,42 @@ class LoginResponse(BaseModel):
 
 class CreateUserRequest(BaseModel):
     identifier: str = Field(min_length=1, max_length=100)
-    name: str = Field(min_length=1, max_length=255)
-    email: str = Field(min_length=3, max_length=255)
+    nama_lengkap: Optional[str] = None
+    name: Optional[str] = None
     password: str = Field(min_length=6, max_length=256)
     role: Literal["mahasiswa", "dosen", "admin"]
-    program_studi: Optional[str] = Field(default=None, max_length=255)
-    fakultas: Optional[str] = Field(default=None, max_length=255)
-    # Rincian opsional spesifik mahasiswa / dosen
+    program_studi: Optional[str] = None
+    fakultas: Optional[str] = None
     dosen_pembimbing_id: Optional[int] = None
-    gelar: Optional[str] = Field(default=None, max_length=100)
-    keahlian: Optional[str] = Field(default=None, max_length=255)
-    angkatan: Optional[str] = Field(default=None, max_length=10)
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_name(cls, data):
+        if isinstance(data, dict):
+            val = data.get("nama_lengkap") or data.get("name") or ""
+            data["nama_lengkap"] = val
+            data["name"] = val
+        return data
+
+class UpdateUserRequest(BaseModel):
+    identifier: Optional[str] = None
+    nama_lengkap: Optional[str] = None
+    name: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[Literal["mahasiswa", "dosen", "admin"]] = None
+    program_studi: Optional[str] = None
+    fakultas: Optional[str] = None
+    dosen_pembimbing_id: Optional[int] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_name(cls, data):
+        if isinstance(data, dict):
+            val = data.get("nama_lengkap") or data.get("name")
+            if val is not None:
+                data["nama_lengkap"] = val
+                data["name"] = val
+        return data
 
 
 def create_access_token(user: User) -> str:
@@ -337,6 +362,67 @@ def create_user(
     return _build_user_response(new_user)
 
 
+@router.put("/users/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    request: UpdateUserRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin Only: Perbarui akun pengguna & profil mahasiswa / dosen"""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pengguna tidak ditemukan.",
+        )
+
+    # Validasi identifier jika diubah
+    if request.identifier and request.identifier != target_user.identifier:
+        exist = db.query(User).filter(User.identifier == request.identifier, User.id != user_id).first()
+        if exist:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Identifier / NIM / NIP '{request.identifier}' sudah terdaftar pada pengguna lain.",
+            )
+        target_user.identifier = request.identifier
+
+    # Validasi & update password jika diisi
+    if request.password and len(request.password.strip()) >= 6:
+        target_user.password = password_hash.hash(request.password.strip())
+
+    nama = request.nama_lengkap or request.name
+
+    # Update profil sesuai role
+    if target_user.role == "dosen":
+        if not target_user.dosen:
+            target_user.dosen = Dosen(id=target_user.id, nama_lengkap=nama or target_user.identifier)
+        elif nama:
+            target_user.dosen.nama_lengkap = nama
+    elif target_user.role == "mahasiswa":
+        if not target_user.mahasiswa:
+            target_user.mahasiswa = Mahasiswa(
+                id=target_user.id,
+                nama_lengkap=nama or target_user.identifier,
+                program_studi=request.program_studi or "Teknik Informatika",
+                fakultas=request.fakultas or "Fakultas Ilmu Komputer",
+                dosen_pembimbing_id=request.dosen_pembimbing_id,
+            )
+        else:
+            if nama:
+                target_user.mahasiswa.nama_lengkap = nama
+            if request.program_studi:
+                target_user.mahasiswa.program_studi = request.program_studi
+            if request.fakultas:
+                target_user.mahasiswa.fakultas = request.fakultas
+            if "dosen_pembimbing_id" in request.model_fields_set:
+                target_user.mahasiswa.dosen_pembimbing_id = request.dosen_pembimbing_id
+
+    db.commit()
+    db.refresh(target_user)
+    return _build_user_response(target_user)
+
+
 @router.delete("/users/{user_id}")
 def delete_user(
     user_id: int,
@@ -357,6 +443,7 @@ def delete_user(
             detail="Pengguna tidak ditemukan.",
         )
 
+    nama = target_user.nama_lengkap
     db.delete(target_user)
     db.commit()
-    return {"message": f"Pengguna '{target_user.name}' berhasil dihapus."}
+    return {"message": f"Pengguna '{nama}' berhasil dihapus."}

@@ -44,6 +44,11 @@ class User(Base):
         return self.identifier
 
     @property
+    def name(self) -> str:
+        """Alias backwards-compatibility untuk nama_lengkap."""
+        return self.nama_lengkap
+
+    @property
     def program_studi(self) -> Optional[str]:
         return self.mahasiswa.program_studi if self.mahasiswa else None
 
@@ -130,6 +135,9 @@ class PlagiarismCheck(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     overall_similarity = Column(Float, nullable=False)
     status = Column(String, default="completed")
+    approval_status = Column(String, default="belum disetujui")  # 'belum disetujui', 'disetujui', 'revisi'
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewer_note = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     document = relationship("Document", back_populates="checks")

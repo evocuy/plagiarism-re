@@ -110,25 +110,21 @@ export interface MahasiswaProfile {
 
 export interface DosenListItem {
   id: number;
-  user_id: number;
   nidn: string;
   nama_lengkap: string;
-  gelar?: string | null;
-  program_studi?: string | null;
-  fakultas?: string | null;
 }
 
 export interface ApiUser {
   id: number;
   identifier: string;
-  name: string;
-  email: string;
+  nama_lengkap?: string;
+  name?: string;
   role: Role;
   program_studi?: string | null;
   fakultas?: string | null;
-  is_active: boolean;
-  dosen_profile?: DosenProfile | null;
-  mahasiswa_profile?: MahasiswaProfile | null;
+  dosen_pembimbing_id?: number | null;
+  dosen_pembimbing_nama?: string | null;
+  email?: string;
 }
 
 export interface LoginResponse {
@@ -138,17 +134,24 @@ export interface LoginResponse {
 
 export interface CreateUserData {
   identifier: string;
-  name: string;
-  email: string;
+  nama_lengkap: string;
+  name?: string;
   password: string;
   role: Role;
+  // Khusus mahasiswa
   program_studi?: string;
   fakultas?: string;
-  // Spesifik dosen
-  gelar?: string;
-  keahlian?: string;
-  // Spesifik mahasiswa
-  angkatan?: string;
+  dosen_pembimbing_id?: number | null;
+}
+
+export interface UpdateUserData {
+  identifier?: string;
+  nama_lengkap?: string;
+  password?: string;
+  role?: Role;
+  // Khusus mahasiswa
+  program_studi?: string;
+  fakultas?: string;
   dosen_pembimbing_id?: number | null;
 }
 
@@ -186,6 +189,13 @@ export async function getAllUsersApi(): Promise<ApiUser[]> {
 export async function createUserApi(userData: CreateUserData): Promise<ApiUser> {
   return apiFetch<ApiUser>("/api/auth/users", {
     method: "POST",
+    body: JSON.stringify(userData),
+  });
+}
+
+export async function updateUserApi(userId: number, userData: UpdateUserData): Promise<ApiUser> {
+  return apiFetch<ApiUser>(`/api/auth/users/${userId}`, {
+    method: "PUT",
     body: JSON.stringify(userData),
   });
 }
@@ -252,6 +262,9 @@ export interface CheckHistoryItem {
   overall_similarity: number;
   similarity_percentage: string;
   status: string;
+  approval_status: string;
+  reviewed_at?: string | null;
+  reviewer_note?: string | null;
   created_at: string;
 }
 
@@ -300,5 +313,34 @@ export async function checkRepositoryApi(documentId: number): Promise<CheckRepos
 export async function getCheckHistoryApi(): Promise<CheckHistoryItem[]> {
   return apiFetch<CheckHistoryItem[]>("/api/plagiarism/history", {
     method: "GET",
+  });
+}
+
+/**
+ * Update approval status for a check (PATCH /api/plagiarism/check/{id}/approval)
+ * Used by Dosen Pembimbing to approve or request revision
+ */
+export interface ApprovalUpdateData {
+  approval_status: "disetujui" | "revisi";
+  reviewer_note?: string;
+}
+
+export interface ApprovalUpdateResponse {
+  id: number;
+  document_id: number;
+  approval_status: string;
+  reviewed_at: string | null;
+  reviewer_note: string | null;
+  owner_name: string;
+  message: string;
+}
+
+export async function updateApprovalStatusApi(
+  checkId: number,
+  data: ApprovalUpdateData
+): Promise<ApprovalUpdateResponse> {
+  return apiFetch<ApprovalUpdateResponse>(`/api/plagiarism/check/${checkId}/approval`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
   });
 }

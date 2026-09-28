@@ -71,7 +71,7 @@ def get_all_documents(
     query = db.query(Document)
     if current_user and current_user.role == "mahasiswa":
         query = query.filter(Document.user_id == current_user.id)
-    elif current_user and current_user.role == "dosen" and (current_user.dosen or current_user.dosen_profile):
+    elif current_user and current_user.role == "dosen" and current_user.dosen:
         dosen_id = current_user.id
         bimbingan_user_ids = (
             db.query(Mahasiswa.id)
@@ -87,7 +87,7 @@ def get_all_documents(
         results.append({
             "id": doc.id,
             "user_id": doc.user_id,
-            "owner_name": doc.user.name if doc.user else "Anonim",
+            "owner_name": doc.user.nama_lengkap if doc.user else "Anonim",
             "owner_identifier": doc.user.identifier if doc.user else "-",
             "title": doc.title,
             "document_type": doc.document_type,
