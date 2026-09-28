@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -7,10 +8,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.database.session import get_db
-from app.models.schemas import Document, PlagiarismCheck, User
+from app.models.schemas import Document, PlagiarismCheck, User, Mahasiswa
 from app.services.pdf_service import PDFService
 from app.services.preprocessing_service import PreprocessingService
-from app.routes.auth import get_optional_current_user
+from app.routes.auth import get_optional_current_user, get_current_user
 
 router = APIRouter()
 pdf_service = PDFService()
@@ -168,14 +169,27 @@ def get_check_history(
 ):
     """
     Mengambil riwayat pengecekan.
-    Jika login sebagai mahasiswa, hanya tampilkan riwayat pengecekan naskah miliknya.
-    Jika login sebagai dosen atau admin, tampilkan seluruh riwayat pengecekan.
+    - Mahasiswa: hanya riwayat naskahnya sendiri.
+    - Dosen: riwayat naskah mahasiswa bimbingannya.
+    - Admin: seluruh riwayat.
     """
     query = db.query(PlagiarismCheck)
 
     if current_user and current_user.role == "mahasiswa":
         query = query.join(Document, PlagiarismCheck.document_id == Document.id).filter(
             (PlagiarismCheck.user_id == current_user.id) | (Document.user_id == current_user.id)
+        )
+    elif current_user and current_user.role == "dosen" and current_user.dosen:
+        # Hanya tampilkan riwayat mahasiswa bimbingan dosen ini
+        dosen_id = current_user.id
+        bimbingan_user_ids = (
+            db.query(Mahasiswa.id)
+            .filter(Mahasiswa.dosen_pembimbing_id == dosen_id)
+            .all()
+        )
+        bimbingan_user_ids = [uid for (uid,) in bimbingan_user_ids]
+        query = query.join(Document, PlagiarismCheck.document_id == Document.id).filter(
+            Document.user_id.in_(bimbingan_user_ids)
         )
 
     checks = query.order_by(PlagiarismCheck.created_at.desc()).all()
@@ -188,7 +202,7 @@ def get_check_history(
             "id": check.id,
             "document_id": check.document_id,
             "user_id": check.user_id or (doc.user_id if doc else None),
-            "owner_name": doc_user.name if doc_user else "Anonim",
+            "owner_name": doc_user.nama_lengkap if doc_user else "Anonim",
             "owner_identifier": doc_user.identifier if doc_user else "-",
             "title": doc.title if doc else "Dokumen tidak ditemukan",
             "document_type": doc.document_type if doc else "Unknown",
@@ -196,6 +210,69 @@ def get_check_history(
             "overall_similarity": check.overall_similarity,
             "similarity_percentage": f"{round(check.overall_similarity * 100, 2)}%",
             "status": check.status,
+            "approval_status": check.approval_status or "belum disetujui",
+            "reviewed_at": check.reviewed_at.isoformat() if check.reviewed_at else None,
+            "reviewer_note": check.reviewer_note,
             "created_at": check.created_at.isoformat() if check.created_at else None,
         })
     return results
+
+
+class ApprovalUpdateRequest(BaseModel):
+    approval_status: str  # 'disetujui' or 'revisi'
+    reviewer_note: Optional[str] = None
+
+
+@router.patch("/check/{check_id}/approval")
+def update_approval_status(
+    check_id: int,
+    request: ApprovalUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Dosen pembimbing mengubah approval_status dari check milik mahasiswa bimbingannya.
+    Nilai yang valid: 'disetujui', 'revisi'
+    """
+    # Validasi nilai approval_status
+    if request.approval_status not in ("disetujui", "revisi"):
+        raise HTTPException(
+            status_code=400,
+            detail="approval_status harus bernilai 'disetujui' atau 'revisi'.",
+        )
+
+    check = db.query(PlagiarismCheck).filter(PlagiarismCheck.id == check_id).first()
+    if not check:
+        raise HTTPException(status_code=404, detail="Check record tidak ditemukan.")
+
+    # Pastikan dosen hanya bisa update check milik mahasiswa bimbingannya
+    if current_user.role == "dosen":
+        doc = check.document
+        if doc and doc.user_id:
+            mhs = db.query(Mahasiswa).filter(Mahasiswa.id == doc.user_id).first()
+            if not mhs or mhs.dosen_pembimbing_id != current_user.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Anda hanya dapat me-review dokumen mahasiswa bimbingan Anda.",
+                )
+    elif current_user.role not in ("admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Akses ditolak.")
+
+    check.approval_status = request.approval_status
+    check.reviewed_at = datetime.utcnow()
+    check.reviewer_note = request.reviewer_note
+    db.commit()
+    db.refresh(check)
+
+    doc = check.document
+    doc_user = doc.user if doc and doc.user else None
+
+    return {
+        "id": check.id,
+        "document_id": check.document_id,
+        "approval_status": check.approval_status,
+        "reviewed_at": check.reviewed_at.isoformat() if check.reviewed_at else None,
+        "reviewer_note": check.reviewer_note,
+        "owner_name": doc_user.nama_lengkap if doc_user else "Anonim",
+        "message": f"Status dokumen berhasil diubah menjadi '{check.approval_status}'.",
+    }

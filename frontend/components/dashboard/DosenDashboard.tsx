@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { getSimilarityColorClass, getStatusBadgeClass } from "@/lib/formatters";
+import { getCheckHistoryApi, getAllDocumentsApi, updateApprovalStatusApi } from "@/lib/api";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -80,8 +81,74 @@ export default function DosenDashboard() {
     title: string;
     description: string;
   } | null>(null);
+  const [bimbinganStudentCount, setBimbinganStudentCount] = useState<number>(2);
+  const [bimbinganDocCount, setBimbinganDocCount] = useState<number>(4);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
 
-  // Manual approval action handler with simulated network delay
+  useEffect(() => {
+    let ignore = false;
+    Promise.allSettled([getCheckHistoryApi(), getAllDocumentsApi()])
+      .then(([checksRes, docsRes]) => {
+        if (ignore) return;
+
+        if (docsRes.status === "fulfilled" && Array.isArray(docsRes.value)) {
+          const docs = docsRes.value;
+          setBimbinganDocCount(docs.length);
+          const uniqueStudents = new Set(docs.map((d) => d.owner_identifier || d.owner_name).filter(Boolean));
+          if (uniqueStudents.size > 0) {
+            setBimbinganStudentCount(uniqueStudents.size);
+          }
+        }
+
+        if (checksRes.status === "fulfilled" && Array.isArray(checksRes.value) && checksRes.value.length > 0) {
+          const mapped: ReviewQueueItem[] = checksRes.value.map((item) => {
+            let submittedAt = "-";
+            if (item.created_at) {
+              try {
+                const d = new Date(item.created_at);
+                submittedAt = d.toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              } catch {
+                submittedAt = item.created_at;
+              }
+            }
+            let initialStatus: "Menunggu Review" | "Perlu Revisi" | "Disetujui" = "Menunggu Review";
+            const appr = (item.approval_status || "").toLowerCase();
+            if (appr === "disetujui") {
+              initialStatus = "Disetujui";
+            } else if (appr === "revisi") {
+              initialStatus = "Perlu Revisi";
+            }
+
+            return {
+              id: `CHK-${item.id}`,
+              studentName: item.owner_name || "Mahasiswa Bimbingan",
+              nim: item.owner_identifier || "-",
+              title: item.title,
+              chapter: item.document_type ? `Dokumen ${item.document_type.toUpperCase()}` : "Naskah",
+              submittedAt,
+              similarityScore: Math.round(item.overall_similarity * 1000) / 10,
+              status: initialStatus,
+            };
+          });
+          setQueueList(mapped);
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingData(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Approval action handler connecting directly to FastAPI backend
   const handleDecision = async (
     id: string,
     decision: "Disetujui" | "Perlu Revisi",
@@ -90,7 +157,14 @@ export default function DosenDashboard() {
   ) => {
     setActiveActionId(`${id}-${decision}`);
     try {
-      await delay(700); // Simulate API latency
+      // If it's a real check from database (starts with CHK-)
+      if (id.startsWith("CHK-")) {
+        const checkId = parseInt(id.replace("CHK-", ""), 10);
+        const apiStatus = decision === "Disetujui" ? "disetujui" : "revisi";
+        await updateApprovalStatusApi(checkId, { approval_status: apiStatus });
+      } else {
+        await delay(500);
+      }
 
       setQueueList((prev) =>
         prev.map((item) => (item.id === id ? { ...item, status: decision } : item))
@@ -103,6 +177,13 @@ export default function DosenDashboard() {
           decision === "Disetujui"
             ? `Naskah "${title}" mahasiswa ${studentName} berhasil disetujui untuk pendaftaran Sempro/Sidang.`
             : `Naskah "${title}" mahasiswa ${studentName} ditandai memerlukan revisi dari mahasiswa.`,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal memperbarui status ke server.";
+      setToastMessage({
+        type: "warning",
+        title: "Gagal Mengubah Status",
+        description: msg,
       });
     } finally {
       setActiveActionId(null);
@@ -187,11 +268,11 @@ export default function DosenDashboard() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-800">12</span>
-            <span className="text-xs text-gray-400">mahasiswa aktif</span>
+            <span className="text-2xl font-bold text-gray-800">{bimbinganStudentCount}</span>
+            <span className="text-xs text-gray-400">mahasiswa bimbingan</span>
           </div>
           <p className="mt-1 text-[11px] text-gray-500">
-            8 Skripsi, 4 Proposal Sempro
+            {bimbinganDocCount} naskah bimbingan terunggah
           </p>
         </div>
 

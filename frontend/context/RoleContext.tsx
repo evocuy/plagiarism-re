@@ -110,20 +110,25 @@ export function buildUserProfile(apiUser: ApiUser): UserProfile {
   const identifierType = role === "mahasiswa" ? "NIM" : role === "dosen" ? "NIDN" : "NIP";
   const roleLabel = role === "mahasiswa" ? "Mahasiswa Bimbingan" : role === "dosen" ? "Dosen Pembimbing" : "Super Admin";
 
-  const words = (apiUser.name || "User").trim().split(" ");
+  const displayName = apiUser.nama_lengkap || apiUser.name || apiUser.identifier || "Pengguna";
+  const words = displayName.trim().split(" ");
   const initials = words.length >= 2
     ? `${words[0][0]}${words[1][0]}`.toUpperCase()
     : (words[0] || "U").substring(0, 2).toUpperCase();
 
+  const programStudi = apiUser.program_studi || "Teknik Informatika";
+  const fakultas = apiUser.fakultas || "Fakultas Ilmu Komputer";
+  const email = apiUser.email || `${apiUser.identifier}@univ.ac.id`;
+
   return {
-    name: apiUser.name,
+    name: displayName,
     identifier: apiUser.identifier,
     identifierType,
     roleLabel,
     initials,
-    email: apiUser.email,
-    programStudi: apiUser.program_studi || "Teknik Informatika",
-    fakultas: apiUser.fakultas || "Fakultas Ilmu Komputer",
+    email,
+    programStudi,
+    fakultas,
   };
 }
 
