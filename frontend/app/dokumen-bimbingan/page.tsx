@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
@@ -16,6 +16,7 @@ import {
   FileSearch,
 } from "lucide-react";
 import { getSimilarityColorClass, getStatusBadgeClass } from "@/lib/formatters";
+import { getCheckHistoryApi } from "@/lib/api";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -87,6 +88,52 @@ export default function DokumenBimbinganPage() {
     title: string;
     description: string;
   } | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    getCheckHistoryApi()
+      .then((data) => {
+        if (!ignore && data && data.length > 0) {
+          const mapped: PendingDocument[] = data.map((item) => {
+            let submittedAt = "-";
+            if (item.created_at) {
+              try {
+                const d = new Date(item.created_at);
+                submittedAt = d.toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              } catch {
+                submittedAt = item.created_at;
+              }
+            }
+            const isSkripsi = (item.document_type || "").toLowerCase().includes("skripsi");
+            return {
+              id: `CHK-${item.id}`,
+              studentName: item.owner_name || "Mahasiswa Bimbingan",
+              nim: item.owner_identifier || "-",
+              title: item.title,
+              chapter: `Dokumen ${item.document_type ? item.document_type.toUpperCase() : "Naskah"}`,
+              type: isSkripsi ? "Skripsi" : "Proposal Sempro",
+              submittedAt,
+              similarityScore: Math.round(item.overall_similarity * 1000) / 10,
+              status: "Menunggu Review",
+            };
+          });
+          setPendingDocs(mapped);
+        }
+      })
+      .catch((err) => {
+        console.error("Gagal memuat dokumen bimbingan:", err);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // Simulated manual approval action handler that removes row from pending view
   const handleDecision = async (

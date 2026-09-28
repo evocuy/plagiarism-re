@@ -18,7 +18,7 @@ import {
   Mail,
   User,
 } from "lucide-react";
-import { getAllUsersApi, createUserApi, deleteUserApi, ApiUser, CreateUserData, Role } from "@/lib/api";
+import { getAllUsersApi, createUserApi, deleteUserApi, listDosenApi, ApiUser, CreateUserData, DosenListItem, Role } from "@/lib/api";
 import { useRole } from "@/context/RoleContext";
 
 export default function KelolaPenggunaPage() {
@@ -35,6 +35,7 @@ export default function KelolaPenggunaPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [dosenList, setDosenList] = useState<DosenListItem[]>([]);
 
   // Form Fields
   const [formData, setFormData] = useState<CreateUserData>({
@@ -45,6 +46,10 @@ export default function KelolaPenggunaPage() {
     role: "mahasiswa",
     program_studi: "Teknik Informatika",
     fakultas: "Fakultas Ilmu Komputer",
+    dosen_pembimbing_id: null,
+    angkatan: "",
+    gelar: "",
+    keahlian: "",
   });
 
   const loadUsers = async () => {
@@ -99,6 +104,10 @@ export default function KelolaPenggunaPage() {
         role: "mahasiswa",
         program_studi: "Teknik Informatika",
         fakultas: "Fakultas Ilmu Komputer",
+        dosen_pembimbing_id: null,
+        angkatan: "",
+        gelar: "",
+        keahlian: "",
       });
       await loadUsers();
     } catch (err: unknown) {
@@ -106,6 +115,16 @@ export default function KelolaPenggunaPage() {
       setFormError(msg);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenModal = async () => {
+    setIsModalOpen(true);
+    try {
+      const list = await listDosenApi();
+      setDosenList(list);
+    } catch {
+      // Abaikan jika gagal, dropdown akan kosong
     }
   };
 
@@ -208,7 +227,7 @@ export default function KelolaPenggunaPage() {
               type="button"
               onClick={() => {
                 setFormError(null);
-                setIsModalOpen(true);
+                handleOpenModal();
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-red-700 transition-colors"
             >
@@ -304,7 +323,7 @@ export default function KelolaPenggunaPage() {
                       Email
                     </th>
                     <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      Program Studi / Fakultas
+                      Program Studi / Info Profil
                     </th>
                     <th className="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
                       Aksi
@@ -330,8 +349,33 @@ export default function KelolaPenggunaPage() {
                         {user.email}
                       </td>
                       <td className="px-4 py-4 text-gray-500">
-                        <div>{user.program_studi || "-"}</div>
-                        <div className="text-[10px] text-gray-400">{user.fakultas || ""}</div>
+                        {user.role === "mahasiswa" && user.mahasiswa_profile ? (
+                          <>
+                            <div className="font-medium text-gray-700">{user.mahasiswa_profile.program_studi || "-"}</div>
+                            <div className="text-[10px] text-gray-400">{user.mahasiswa_profile.fakultas || ""}</div>
+                            {user.mahasiswa_profile.dosen_pembimbing_nama && (
+                              <div className="text-[10px] text-emerald-600 mt-0.5">
+                                Pembimbing: {user.mahasiswa_profile.dosen_pembimbing_nama}
+                              </div>
+                            )}
+                            {user.mahasiswa_profile.angkatan && (
+                              <div className="text-[10px] text-gray-400">Angkatan {user.mahasiswa_profile.angkatan}</div>
+                            )}
+                          </>
+                        ) : user.role === "dosen" && user.dosen_profile ? (
+                          <>
+                            <div className="font-medium text-gray-700">{user.dosen_profile.program_studi || "-"}</div>
+                            <div className="text-[10px] text-gray-400">{user.dosen_profile.fakultas || ""}</div>
+                            {user.dosen_profile.keahlian && (
+                              <div className="text-[10px] text-blue-600 mt-0.5">Keahlian: {user.dosen_profile.keahlian}</div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div>{user.program_studi || "-"}</div>
+                            <div className="text-[10px] text-gray-400">{user.fakultas || ""}</div>
+                          </>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
@@ -362,7 +406,7 @@ export default function KelolaPenggunaPage() {
       {/* Modal Tambah Pengguna Baru */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-5">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-700">
@@ -521,6 +565,64 @@ export default function KelolaPenggunaPage() {
                   />
                 </div>
               </div>
+
+              {/* Field khusus Dosen */}
+              {formData.role === "dosen" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-dashed border-gray-200 pt-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Gelar Akademik</label>
+                    <input
+                      type="text"
+                      value={formData.gelar || ""}
+                      onChange={(e) => setFormData({ ...formData, gelar: e.target.value })}
+                      placeholder="Dr. / M.Kom."
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:border-red-600 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Keahlian</label>
+                    <input
+                      type="text"
+                      value={formData.keahlian || ""}
+                      onChange={(e) => setFormData({ ...formData, keahlian: e.target.value })}
+                      placeholder="Machine Learning, NLP..."
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:border-red-600 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Field khusus Mahasiswa */}
+              {formData.role === "mahasiswa" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-dashed border-gray-200 pt-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Angkatan</label>
+                    <input
+                      type="text"
+                      value={formData.angkatan || ""}
+                      onChange={(e) => setFormData({ ...formData, angkatan: e.target.value })}
+                      placeholder="2021"
+                      maxLength={4}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:border-red-600 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Dosen Pembimbing</label>
+                    <select
+                      value={formData.dosen_pembimbing_id ?? ""}
+                      onChange={(e) => setFormData({ ...formData, dosen_pembimbing_id: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-800 focus:border-red-600 focus:outline-hidden focus:ring-1 focus:ring-red-600"
+                    >
+                      <option value="">— Belum ditentukan —</option>
+                      {dosenList.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.nama_lengkap} ({d.nidn})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {/* Submit Buttons */}
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">

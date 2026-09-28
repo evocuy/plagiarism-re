@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.database.session import get_db
-from app.models.schemas import Document, User
+from app.models.schemas import Document, User, Mahasiswa
 from app.routes.auth import get_optional_current_user, get_current_user
 
 router = APIRouter()
@@ -64,12 +64,22 @@ def get_all_documents(
     db: Session = Depends(get_db),
 ):
     """
-    Jika login sebagai mahasiswa, hanya tampilkan dokumen miliknya.
-    Jika login sebagai dosen atau admin, tampilkan seluruh dokumen repositori.
+    - Mahasiswa: hanya dokumen miliknya.
+    - Dosen: dokumen milik mahasiswa bimbingannya.
+    - Admin / tanpa login: seluruh dokumen.
     """
     query = db.query(Document)
     if current_user and current_user.role == "mahasiswa":
         query = query.filter(Document.user_id == current_user.id)
+    elif current_user and current_user.role == "dosen" and (current_user.dosen or current_user.dosen_profile):
+        dosen_id = current_user.id
+        bimbingan_user_ids = (
+            db.query(Mahasiswa.id)
+            .filter(Mahasiswa.dosen_pembimbing_id == dosen_id)
+            .all()
+        )
+        bimbingan_user_ids = [uid for (uid,) in bimbingan_user_ids]
+        query = query.filter(Document.user_id.in_(bimbingan_user_ids))
 
     docs = query.order_by(Document.created_at.desc()).all()
     results = []

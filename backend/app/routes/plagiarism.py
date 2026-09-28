@@ -7,7 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.database.session import get_db
-from app.models.schemas import Document, PlagiarismCheck, User
+from app.models.schemas import Document, PlagiarismCheck, User, Mahasiswa
 from app.services.pdf_service import PDFService
 from app.services.preprocessing_service import PreprocessingService
 from app.routes.auth import get_optional_current_user
@@ -168,14 +168,27 @@ def get_check_history(
 ):
     """
     Mengambil riwayat pengecekan.
-    Jika login sebagai mahasiswa, hanya tampilkan riwayat pengecekan naskah miliknya.
-    Jika login sebagai dosen atau admin, tampilkan seluruh riwayat pengecekan.
+    - Mahasiswa: hanya riwayat naskahnya sendiri.
+    - Dosen: riwayat naskah mahasiswa bimbingannya.
+    - Admin: seluruh riwayat.
     """
     query = db.query(PlagiarismCheck)
 
     if current_user and current_user.role == "mahasiswa":
         query = query.join(Document, PlagiarismCheck.document_id == Document.id).filter(
             (PlagiarismCheck.user_id == current_user.id) | (Document.user_id == current_user.id)
+        )
+    elif current_user and current_user.role == "dosen" and (current_user.dosen or current_user.dosen_profile):
+        # Hanya tampilkan riwayat mahasiswa bimbingan dosen ini
+        dosen_id = current_user.id
+        bimbingan_user_ids = (
+            db.query(Mahasiswa.id)
+            .filter(Mahasiswa.dosen_pembimbing_id == dosen_id)
+            .all()
+        )
+        bimbingan_user_ids = [uid for (uid,) in bimbingan_user_ids]
+        query = query.join(Document, PlagiarismCheck.document_id == Document.id).filter(
+            Document.user_id.in_(bimbingan_user_ids)
         )
 
     checks = query.order_by(PlagiarismCheck.created_at.desc()).all()

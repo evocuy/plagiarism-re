@@ -87,6 +87,37 @@ export async function apiFetch<T = unknown>(
  */
 export type Role = "mahasiswa" | "dosen" | "admin";
 
+export interface DosenProfile {
+  id: number;
+  nidn: string;
+  nama_lengkap: string;
+  gelar?: string | null;
+  program_studi?: string | null;
+  fakultas?: string | null;
+  keahlian?: string | null;
+}
+
+export interface MahasiswaProfile {
+  id: number;
+  nim: string;
+  nama_lengkap: string;
+  program_studi?: string | null;
+  fakultas?: string | null;
+  angkatan?: string | null;
+  dosen_pembimbing_id?: number | null;
+  dosen_pembimbing_nama?: string | null;
+}
+
+export interface DosenListItem {
+  id: number;
+  user_id: number;
+  nidn: string;
+  nama_lengkap: string;
+  gelar?: string | null;
+  program_studi?: string | null;
+  fakultas?: string | null;
+}
+
 export interface ApiUser {
   id: number;
   identifier: string;
@@ -96,6 +127,8 @@ export interface ApiUser {
   program_studi?: string | null;
   fakultas?: string | null;
   is_active: boolean;
+  dosen_profile?: DosenProfile | null;
+  mahasiswa_profile?: MahasiswaProfile | null;
 }
 
 export interface LoginResponse {
@@ -111,6 +144,12 @@ export interface CreateUserData {
   role: Role;
   program_studi?: string;
   fakultas?: string;
+  // Spesifik dosen
+  gelar?: string;
+  keahlian?: string;
+  // Spesifik mahasiswa
+  angkatan?: string;
+  dosen_pembimbing_id?: number | null;
 }
 
 export async function loginApi(identifier: string, password: string): Promise<LoginResponse> {
@@ -154,6 +193,12 @@ export async function createUserApi(userData: CreateUserData): Promise<ApiUser> 
 export async function deleteUserApi(userId: number): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/api/auth/users/${userId}`, {
     method: "DELETE",
+  });
+}
+
+export async function listDosenApi(): Promise<DosenListItem[]> {
+  return apiFetch<DosenListItem[]>("/api/auth/users/dosen", {
+    method: "GET",
   });
 }
 

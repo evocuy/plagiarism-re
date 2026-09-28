@@ -114,6 +114,18 @@ export function buildUserProfile(apiUser: ApiUser): UserProfile {
     ? `${words[0][0]}${words[1][0]}`.toUpperCase()
     : (words[0] || "U").substring(0, 2).toUpperCase();
 
+  // Baca program_studi/fakultas dari profil spesifik dulu, fallback ke kolom user
+  const programStudi =
+    apiUser.mahasiswa_profile?.program_studi ||
+    apiUser.dosen_profile?.program_studi ||
+    apiUser.program_studi ||
+    "Teknik Informatika";
+  const fakultas =
+    apiUser.mahasiswa_profile?.fakultas ||
+    apiUser.dosen_profile?.fakultas ||
+    apiUser.fakultas ||
+    "Fakultas Ilmu Komputer";
+
   return {
     name: apiUser.name,
     identifier: apiUser.identifier,
@@ -121,8 +133,8 @@ export function buildUserProfile(apiUser: ApiUser): UserProfile {
     roleLabel,
     initials,
     email: apiUser.email,
-    programStudi: apiUser.program_studi || "Teknik Informatika",
-    fakultas: apiUser.fakultas || "Fakultas Ilmu Komputer",
+    programStudi,
+    fakultas,
   };
 }
 

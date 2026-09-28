@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { getSimilarityColorClass, getStatusBadgeClass } from "@/lib/formatters";
+import { getCheckHistoryApi, getAllDocumentsApi } from "@/lib/api";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -80,6 +81,64 @@ export default function DosenDashboard() {
     title: string;
     description: string;
   } | null>(null);
+  const [bimbinganStudentCount, setBimbinganStudentCount] = useState<number>(2);
+  const [bimbinganDocCount, setBimbinganDocCount] = useState<number>(4);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+
+  useEffect(() => {
+    let ignore = false;
+    Promise.allSettled([getCheckHistoryApi(), getAllDocumentsApi()])
+      .then(([checksRes, docsRes]) => {
+        if (ignore) return;
+
+        if (docsRes.status === "fulfilled" && Array.isArray(docsRes.value)) {
+          const docs = docsRes.value;
+          setBimbinganDocCount(docs.length);
+          const uniqueStudents = new Set(docs.map((d) => d.owner_identifier || d.owner_name).filter(Boolean));
+          if (uniqueStudents.size > 0) {
+            setBimbinganStudentCount(uniqueStudents.size);
+          }
+        }
+
+        if (checksRes.status === "fulfilled" && Array.isArray(checksRes.value) && checksRes.value.length > 0) {
+          const mapped: ReviewQueueItem[] = checksRes.value.map((item) => {
+            let submittedAt = "-";
+            if (item.created_at) {
+              try {
+                const d = new Date(item.created_at);
+                submittedAt = d.toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              } catch {
+                submittedAt = item.created_at;
+              }
+            }
+            return {
+              id: `CHK-${item.id}`,
+              studentName: item.owner_name || "Mahasiswa Bimbingan",
+              nim: item.owner_identifier || "-",
+              title: item.title,
+              chapter: item.document_type ? `Dokumen ${item.document_type.toUpperCase()}` : "Naskah",
+              submittedAt,
+              similarityScore: Math.round(item.overall_similarity * 1000) / 10,
+              status: "Menunggu Review",
+            };
+          });
+          setQueueList(mapped);
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingData(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // Manual approval action handler with simulated network delay
   const handleDecision = async (
@@ -187,11 +246,11 @@ export default function DosenDashboard() {
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-800">12</span>
-            <span className="text-xs text-gray-400">mahasiswa aktif</span>
+            <span className="text-2xl font-bold text-gray-800">{bimbinganStudentCount}</span>
+            <span className="text-xs text-gray-400">mahasiswa bimbingan</span>
           </div>
           <p className="mt-1 text-[11px] text-gray-500">
-            8 Skripsi, 4 Proposal Sempro
+            {bimbinganDocCount} naskah bimbingan terunggah
           </p>
         </div>
 
