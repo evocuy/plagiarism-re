@@ -1,7 +1,11 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, documents, plagiarism
 from app.database.session import Base, SessionLocal, engine
+
+load_dotenv()
 
 # Buat tabel di PostgreSQL secara otomatis jika belum ada
 Base.metadata.create_all(bind=engine)
@@ -12,14 +16,13 @@ with SessionLocal() as db:
 
 app = FastAPI(title="Plagiarism Checker API", version="1.0.0")
 
+# Baca CORS origins langsung dari .env (pisahkan koma)
+cors_origins_env = os.getenv("CORS_ORIGINS", "") or os.getenv("ALLOWED_ORIGINS", "")
+allow_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
