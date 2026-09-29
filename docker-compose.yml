@@ -7,9 +7,8 @@ services:
     container_name: plagiarism-db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: evopuki123
-      POSTGRES_DB: plagiarism_db
+      - DATABASE_URL=postgresql://postgres:inipasswordyangsangatkuat@192.168.1.13:5432/plagiarism_db
+
     ports:
       - "5432:5432"
     volumes:
